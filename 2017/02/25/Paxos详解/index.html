@@ -90,7 +90,7 @@
 <meta property="og:url" content="https://github.com/JasonChen86899/2017/02/25/Paxos详解/index.html">
 <meta property="og:site_name" content="JasonChen Blog">
 <meta property="og:description" content="小记有人说过，世上只有一种分布式算法，如果有其他的那也只是它的变种。这就是Paxos算法，这也是本博客的主题。">
-<meta property="og:updated_time" content="2017-03-15T11:19:41.041Z">
+<meta property="og:updated_time" content="2017-03-15T11:22:34.776Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Paxos 算法详解">
 <meta name="twitter:description" content="小记有人说过，世上只有一种分布式算法，如果有其他的那也只是它的变种。这就是Paxos算法，这也是本博客的主题。">
@@ -404,7 +404,7 @@
 </li>
 <li><p>二阶段：采用<strong>后者认同前者</strong>的原则进行<br>1.在肯定旧epoch无法生成确定性取值时，新的epoch会提交自己的取值，不会冲突。<br>2.一旦旧epoch形成确定性取值，新的epoch肯定可以获取到此值，并且会认同此取值，不会破坏</p>
 <blockquote>
-<p>如果获取的var取值都为空，则旧epoch无法形成确定性取值。此时努力使<epoch,v>成为确定性取值<br>1) epoch对应的所有acceptor提交取值<epoch,v><br>2) 如果收到半数以上成功，则返回<ok,v><br>3) 否则，则返回<error>(被新epoch抢占或者acceptor故障)<br>如果var的取值存在，认同最大aaccepted_epoch对应的取值f，努力使<epoch,v>成为确定性取值<br>如果f出现半数以上，则说明f已经确定性取值，直接返回<ok,f><br>否则，向epoch对应的所有acceptor提交取值<epoch,f></epoch,f></ok,f></epoch,v></error></ok,v></epoch,v></epoch,v></p>
+<p>如果获取的var取值都为空，则旧epoch无法形成确定性取值。此时努力使<epoch,v>成为确定性取值<br>1) epoch对应的所有acceptor提交取值<epoch,v><br>2) 如果收到半数以上成功，则返回<ok,v><br>3) 否则，则返回<error>(被新epoch抢占或者acceptor故障)<br>如果var的取值存在，认同最大aaccepted_epoch对应的取值f，努力使<epoch,v>成为确定性取值<br>1) 如果f出现半数以上，则说明f已经确定性取值，直接返回<ok,f><br>2) 否则，向epoch对应的所有acceptor提交取值<epoch,f></epoch,f></ok,f></epoch,v></error></ok,v></epoch,v></epoch,v></p>
 </blockquote>
 </li>
 </ul>
