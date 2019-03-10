@@ -91,7 +91,7 @@
 <meta property="og:site_name" content="JasonChen Blog">
 <meta property="og:description" content="Netty是如今互联网最流行的java通讯库，在众多优秀组件 dubbo,grpc-java,jetty,RocketMQ中都使用了netty作为其通讯组件。在netty的使用中，最常见的就是ByteBuf类，这个类最常见是由于其是字节数据的容器，白话一点就是存放字节数据的数组。因为所有的网络通信最终都是基于底层的字节流传输，所以需要一个方便、易用的数据接口进行字节流的基本操作，正好ByteBuf">
 <meta property="og:image" content="http://chblog.me/images/Recycler.Stack数据结构图.PNG">
-<meta property="og:updated_time" content="2019-03-10T15:24:00.990Z">
+<meta property="og:updated_time" content="2019-03-10T15:46:32.023Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Netty源码解析-ByteBuf篇">
 <meta name="twitter:description" content="Netty是如今互联网最流行的java通讯库，在众多优秀组件 dubbo,grpc-java,jetty,RocketMQ中都使用了netty作为其通讯组件。在netty的使用中，最常见的就是ByteBuf类，这个类最常见是由于其是字节数据的容器，白话一点就是存放字节数据的数组。因为所有的网络通信最终都是基于底层的字节流传输，所以需要一个方便、易用的数据接口进行字节流的基本操作，正好ByteBuf">
@@ -359,7 +359,7 @@
       
 
       
-        <p>Netty是如今互联网最流行的java通讯库，在众多优秀组件 dubbo,grpc-java,jetty,RocketMQ中都使用了netty作为其通讯组件。<br>在netty的使用中，最常见的就是ByteBuf类，这个类最常见是由于其是<strong>字节数据的容器</strong>，白话一点就是存放字节数据的数组。<br>因为所有的网络通信最终都是基于底层的字节流传输，所以需要一个方便、易用的数据接口进行字节流的基本操作，正好ByteBuf提供了<br>基础的操作。</p>
+        <p>Netty是如今互联网最流行的java通讯库，在众多优秀组件 dubbo,grpc-java,jetty,RocketMQ中都使用了netty作为其通讯组件。<br>在netty的使用中，最常见的就是ByteBuf类，这个类最常见是由于其是<strong>字节数据的容器</strong>，白话一点就是存放字节数据的数组。<br>因为所有的网络通信最终都是基于底层的字节流传输，所以需要一个方便、易用的数据接口进行字节流的基本操作，正好ByteBuf提供了<br>基础的操作。<br><a id="more"></a></p>
 <h3 id="ByteBuf-三种类型"><a href="#ByteBuf-三种类型" class="headerlink" title="ByteBuf 三种类型"></a>ByteBuf 三种类型</h3><ol>
 <li>堆缓充区<br>此类型ByteBuf将数据存在JVM的堆空间。以非池化的堆内存为例 UnpooledHeapByteBuf，阅读源码其中使用 byte[] array作为数据存储，很显然数据在堆内存，所以在其作为IO输出到socket或者file时，显然效率是不如堆外内存的，这里面的知识详情见附录，涉及经常被提及的零拷贝的概念。</li>
 <li>直接缓冲区<br>此类型ByteBuf将数据存在JVM的堆外内存，注意：这里的堆外内存依然是用户态的内存不是内核态的内存映射。为什么要使用堆外内存，这里面的知识也是涉及附录知识点。以非池化的直接缓冲区为例 UnpooledDirectByteBuf，阅读源码其使用 ByteBuffer的DirectByteBuffer直接内存作为数据存储，采用装饰者模式进行装饰性封装。<br>3.复合缓冲区<br>此类型ByteBuf是用于<strong>避免重复内存拷贝</strong>而设计的，CompositeByteBuf类来处理复合缓冲区，但其只是一个视图，何为视图，白话一点就是其是一个装饰者，封装了底层实现用来让api调用者用起来以为是一个ByteBuf缓冲区而不是同时操作多个缓冲区。避免重复内存以及之间的拷贝也是涉及附录知识点。复合缓冲区就像一个组件列表，组件就是Bytebuf，我们可以动态的往其中加入和删除Bytebuf</li>

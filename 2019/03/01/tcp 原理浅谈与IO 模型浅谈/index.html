@@ -84,34 +84,22 @@
 
 
 
-<meta name="description" content="TCP协议详解众所周知，TCP协议是一个可靠的的协议，也是一个流量控制协议
-TCP协议可靠性中的那些超时TCP的可靠性依赖于大量的 Timer 和 Retransmission 。现在咱们就来细说一下TCP协议的那些 Timer 。
-
-Connection-Establishment Timer在TCP三次握手创建一个连接时，以下两种情况会发生超时：
-client发送SYN后，进入SYN_SENT">
+<meta name="description" content="TCP协议详解众所周知，TCP协议是一个可靠的的协议，也是一个流量控制协议">
 <meta property="og:type" content="article">
 <meta property="og:title" content="TCP协议详解">
 <meta property="og:url" content="https://github.com/JasonChen86899/2019/03/01/tcp 原理浅谈与IO 模型浅谈/index.html">
 <meta property="og:site_name" content="JasonChen Blog">
-<meta property="og:description" content="TCP协议详解众所周知，TCP协议是一个可靠的的协议，也是一个流量控制协议
-TCP协议可靠性中的那些超时TCP的可靠性依赖于大量的 Timer 和 Retransmission 。现在咱们就来细说一下TCP协议的那些 Timer 。
-
-Connection-Establishment Timer在TCP三次握手创建一个连接时，以下两种情况会发生超时：
-client发送SYN后，进入SYN_SENT">
+<meta property="og:description" content="TCP协议详解众所周知，TCP协议是一个可靠的的协议，也是一个流量控制协议">
 <meta property="og:image" content="http://chblog.me/images/tcp状态转换图.PNG">
 <meta property="og:image" content="http://chblog.me/images/PAR.PNG">
 <meta property="og:image" content="http://chblog.me/images/send缓冲区1.PNG">
 <meta property="og:image" content="http://chblog.me/images/send缓冲区2.PNG">
 <meta property="og:image" content="http://chblog.me/images/send缓冲区3.PNG">
 <meta property="og:image" content="http://chblog.me/images/抓包.PNG">
-<meta property="og:updated_time" content="2019-03-10T15:29:09.970Z">
+<meta property="og:updated_time" content="2019-03-10T15:46:33.533Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="TCP协议详解">
-<meta name="twitter:description" content="TCP协议详解众所周知，TCP协议是一个可靠的的协议，也是一个流量控制协议
-TCP协议可靠性中的那些超时TCP的可靠性依赖于大量的 Timer 和 Retransmission 。现在咱们就来细说一下TCP协议的那些 Timer 。
-
-Connection-Establishment Timer在TCP三次握手创建一个连接时，以下两种情况会发生超时：
-client发送SYN后，进入SYN_SENT">
+<meta name="twitter:description" content="TCP协议详解众所周知，TCP协议是一个可靠的的协议，也是一个流量控制协议">
 <meta name="twitter:image" content="http://chblog.me/images/tcp状态转换图.PNG">
 
 
@@ -376,7 +364,7 @@ client发送SYN后，进入SYN_SENT">
       
 
       
-        <p>TCP协议详解<br>众所周知，TCP协议是一个<strong>可靠的</strong>的协议，也是一个<strong>流量控制</strong>协议</p>
+        <p>TCP协议详解<br>众所周知，TCP协议是一个<strong>可靠的</strong>的协议，也是一个<strong>流量控制</strong>协议<br><a id="more"></a></p>
 <h3 id="TCP协议可靠性中的那些超时"><a href="#TCP协议可靠性中的那些超时" class="headerlink" title="TCP协议可靠性中的那些超时"></a>TCP协议可靠性中的那些超时</h3><p>TCP的可靠性依赖于大量的 Timer 和 Retransmission 。现在咱们就来细说一下TCP协议的那些 Timer 。</p>
 <p><img src="http://chblog.me/images/tcp状态转换图.PNG" alt="TCP State transition diagram"></p>
 <h4 id="Connection-Establishment-Timer"><a href="#Connection-Establishment-Timer" class="headerlink" title="Connection-Establishment Timer"></a>Connection-Establishment Timer</h4><p>在TCP三次握手创建一个连接时，以下两种情况会发生超时：</p>
