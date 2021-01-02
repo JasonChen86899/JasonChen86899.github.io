@@ -1,0 +1,695 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans,en,default">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.0" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Technology," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.0" />
+
+
+
+
+
+
+<meta name="description" content="限流器 顾名思义用来对高并发的请求进行流量限制的组件。为啥需要进行流量限制。首先后端服务由于各个业务的不同和复杂性，各自在容器部署的时候都可能会有单台的瓶颈，超过瓶颈会导致内存或者cpu的瓶颈，进而导致发生服务不可用或者单台容器直接挂掉或重启。流量的限制在众多微服务和service mesh系统中多有应用。笔者在本文的程序示例均以golang作为示例。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="限流器">
+<meta property="og:url" content="https://github.com/JasonChen86899/2020/05/01/限流器-golang/index.html">
+<meta property="og:site_name" content="JasonChen Blog">
+<meta property="og:description" content="限流器 顾名思义用来对高并发的请求进行流量限制的组件。为啥需要进行流量限制。首先后端服务由于各个业务的不同和复杂性，各自在容器部署的时候都可能会有单台的瓶颈，超过瓶颈会导致内存或者cpu的瓶颈，进而导致发生服务不可用或者单台容器直接挂掉或重启。流量的限制在众多微服务和service mesh系统中多有应用。笔者在本文的程序示例均以golang作为示例。">
+<meta property="og:updated_time" content="2021-01-02T12:44:49.546Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="限流器">
+<meta name="twitter:description" content="限流器 顾名思义用来对高并发的请求进行流量限制的组件。为啥需要进行流量限制。首先后端服务由于各个业务的不同和复杂性，各自在容器部署的时候都可能会有单台的瓶颈，超过瓶颈会导致内存或者cpu的瓶颈，进而导致发生服务不可用或者单台容器直接挂掉或重启。流量的限制在众多微服务和service mesh系统中多有应用。笔者在本文的程序示例均以golang作为示例。">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    sidebar: {"position":"left","display":"post"},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/JasonChen86899/2020/05/01/限流器-golang/"/>
+
+
+
+
+
+  <title> 限流器 | JasonChen Blog </title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/"  class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">JasonChen Blog</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+    
+      <p class="site-subtitle"></p>
+    
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <link itemprop="mainEntityOfPage" href="https://github.com/JasonChen86899/2020/05/01/限流器-golang/">
+
+  <span style="display:none" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <meta itemprop="name" content="JasonChen -- a backend programmer who passion for technology">
+    <meta itemprop="description" content="">
+    <meta itemprop="image" content="/images/avatar.png">
+  </span>
+
+  <span style="display:none" itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+    <meta itemprop="name" content="JasonChen Blog">
+    <span style="display:none" itemprop="logo" itemscope itemtype="http://schema.org/ImageObject">
+      <img style="display:none;" itemprop="url image" alt="JasonChen Blog" src="">
+    </span>
+  </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                限流器
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-05-01T00:00:00+08:00">
+                2020-05-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Golang/" itemprop="url" rel="index">
+                    <span itemprop="name">Golang</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+
+          
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p><strong>限流器</strong> 顾名思义用来对高并发的请求进行流量限制的组件。<br>为啥需要进行流量限制。首先后端服务由于各个业务的不同和复杂性，各自在容器部署的时候都可能会有单台的瓶颈，超过瓶颈会导致内存或者cpu的瓶颈，进而导致发生服务不可用或者单台容器直接挂掉或重启。<br>流量的限制在众多微服务和service mesh系统中多有应用。笔者在本文的程序示例均以golang作为示例。<br><a id="more"></a></p>
+<h4 id="信号量限流"><a href="#信号量限流" class="headerlink" title="信号量限流"></a>信号量限流</h4><p>信号量 在众多开发语言中都会有相关信号量的设计。笔者在阅读一些语言开源实现后，总结出信号量的主要有非阻塞和阻塞两种。<br>信号量两个重要方法 Acquire() 和 Release()  </p>
+<ol>
+<li>非阻塞方式<br>以并发安全的计数方式比如采用原子atomic加减进行</li>
+<li>阻塞方式<br>采用锁或者阻塞队列方式，比如java JUC包中的信号量。以golang为示例如下<figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 采用channel作为底层数据结构，从而达到阻塞的获取和使用信号量</span></div><div class="line"><span class="keyword">type</span> Semaphore <span class="keyword">struct</span> &#123;</div><div class="line">	innerChan <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</div><div class="line">&#125;</div><div class="line"><span class="comment">// 初始化信号量，本质初始化一个channel，channel的初始化大小为 信号量数值</span></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewSemaphore</span><span class="params">(num <span class="keyword">uint64</span>)</span> *<span class="title">Semaphore</span></span> &#123;</div><div class="line">	<span class="keyword">return</span> &amp;Semaphore&#123;</div><div class="line">		innerChan: <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;, num),</div><div class="line">	&#125;</div><div class="line">&#125;</div><div class="line"><span class="comment">// 获取信号量，本质是 向channel放入元素，如果同时有很多协程并发获取信号量，则channel则会full阻塞，从而达到控制并发协程数的目的，也即是信号量的控制</span></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Semaphore)</span> <span class="title">Acquire</span><span class="params">()</span></span> &#123;</div><div class="line">	<span class="keyword">for</span> &#123;</div><div class="line">		<span class="keyword">select</span> &#123;</div><div class="line">		<span class="keyword">case</span> s.innerChan &lt;- <span class="keyword">struct</span>&#123;&#125;&#123;&#125;:</div><div class="line">			<span class="keyword">return</span></div><div class="line">		<span class="keyword">default</span>:</div><div class="line">			log.Error(<span class="string">"semaphore acquire is blocking"</span>)</div><div class="line">			time.Sleep(<span class="number">100</span> * time.Millisecond)</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">&#125;</div><div class="line"><span class="comment">// 释放信号量 本质是 从channel中获取元素，由于有acquire的放入元素，所以此处一定能回去到元素 也就能释放成功，default只要是出于安全编程的目的</span></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Semaphore)</span> <span class="title">Release</span><span class="params">()</span></span> &#123;</div><div class="line">	<span class="keyword">select</span> &#123;</div><div class="line">	<span class="keyword">case</span> &lt;-s.innerChan:</div><div class="line">		<span class="keyword">return</span></div><div class="line">	<span class="keyword">default</span>:</div><div class="line">		<span class="keyword">return</span></div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<h3 id="限流算法"><a href="#限流算法" class="headerlink" title="限流算法"></a>限流算法</h3><p>主流的限流算法分为两种 <strong>漏桶算法</strong>和<strong>令牌桶算法</strong>，关于这两个算法有很多文章和论文都给出了详细的讲解。从原理上看，令牌桶算法和漏桶算法是相反的，一个“进水”，一个是“漏水”。值得一提的是Google Guava开源和Uber开源限流组件均采用漏桶算法。</p>
+<p>所以此处笔者开门见山，直接展示此算法的golang的实现，代码如下<br><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 此处截取自研的熔断器代码中的限流实现，这是非阻塞的实现</span></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sp *servicePanel)</span> <span class="title">incLimit</span><span class="params">()</span> <span class="title">error</span></span> &#123;</div><div class="line">	<span class="comment">// 如果大于限制的条件则返回错误</span></div><div class="line">	<span class="keyword">if</span> sp.currentLimitCount.Load() &gt; sp.currLimitFunc(<span class="literal">nil</span>) &#123;</div><div class="line">		<span class="keyword">return</span> ErrCurrentLimit</div><div class="line">	&#125;</div><div class="line">	sp.currentLimitCount.Inc()</div><div class="line">	<span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sp *servicePanel)</span> <span class="title">clearLimit</span><span class="params">()</span></span> &#123;</div><div class="line">	<span class="comment">// 定期每秒重置计数器，从而达到每秒限制的并发数</span></div><div class="line">	<span class="comment">// 比如限制1000req/s，在这里指每秒清理1000的计数值</span></div><div class="line"><span class="comment">// 令牌桶是定期放，这里是逆思维，每秒清空，实现不仅占用内存低而且效率高</span></div><div class="line">	t := time.NewTicker(time.Second)</div><div class="line">	<span class="keyword">for</span> &#123;</div><div class="line">		<span class="keyword">select</span> &#123;</div><div class="line">		<span class="keyword">case</span> &lt;-t.C:</div><div class="line">			sp.currentLimitCount.Store(<span class="number">0</span>)</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>分析<br>上述的实现实际是比较粗糙的实现，没有严格按照每个请求方按照某个固定速率进行，而是以秒为单位，粗粒度的进行计数清零，这其实会造成某个瞬间双倍的每秒限流个数，虽然看上去不满足要求，但是在这个瞬间其实是只是一个双倍值，正常系统都应该会应付一瞬间双倍限流个数的请求量。<br>改进<br>如果要严格的按照每个请求按照某个固定数值进行，那么可以改进时间的粗力度，具体做法如下<br><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sp *servicePanel)</span> <span class="title">incLimit</span><span class="params">()</span> <span class="title">error</span></span> &#123;</div><div class="line">	<span class="comment">// 如果大于1则返回错误</span></div><div class="line">	<span class="keyword">if</span> sp.currentLimitCount.Load() &gt; <span class="number">1</span> &#123;</div><div class="line">		<span class="keyword">return</span> ErrCurrentLimit</div><div class="line">	&#125;</div><div class="line">	sp.currentLimitCount.Inc()</div><div class="line">	<span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sp *servicePanel)</span> <span class="title">clearLimit</span><span class="params">()</span></span> &#123;</div><div class="line">	<span class="comment">// 1s除以每秒限流个数</span></div><div class="line">	t := time.NewTicker(time.Second/time.Duration(sp.currLimitFunc(<span class="literal">nil</span>)))</div><div class="line">	<span class="keyword">for</span> &#123;</div><div class="line">		<span class="keyword">select</span> &#123;</div><div class="line">		<span class="keyword">case</span> &lt;-t.C:</div><div class="line">			sp.currentLimitCount.Store(<span class="number">0</span>)</div><div class="line">		&#125;</div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h4 id="uber-开源实现RateLimit-源码解析"><a href="#uber-开源实现RateLimit-源码解析" class="headerlink" title="uber 开源实现RateLimit 源码解析"></a>uber 开源实现RateLimit 源码解析</h4><h5 id="引入方式"><a href="#引入方式" class="headerlink" title="引入方式"></a>引入方式</h5><p>第一版本<br>go get github.com/uber-go/ratelimit@v0.1.0</p>
+<p>第二版本<br>go get github.com/uber-go/ratelimit@master</p>
+<p>首先强调一点，跟笔者自研的限流器最大的不同的是，这是一个阻塞调用者的限流组件。先不多说，开始讲解源码<br>Test 示例<br><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">ExampleRatelimit</span><span class="params">()</span></span> &#123;</div><div class="line">	rl := ratelimit.New(<span class="number">100</span>) <span class="comment">// per second</span></div><div class="line"></div><div class="line">	prev := time.Now()</div><div class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">10</span>; i++ &#123;</div><div class="line">		now := rl.Take()</div><div class="line">		<span class="keyword">if</span> i &gt; <span class="number">0</span> &#123;</div><div class="line">			fmt.Println(i, now.Sub(prev))</div><div class="line">		&#125;</div><div class="line">		prev = now</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="comment">// Output:</span></div><div class="line">	<span class="comment">// 1 10ms</span></div><div class="line">	<span class="comment">// 2 10ms</span></div><div class="line">	<span class="comment">// 3 10ms</span></div><div class="line">	<span class="comment">// 4 10ms</span></div><div class="line">	<span class="comment">// 5 10ms</span></div><div class="line">	<span class="comment">// 6 10ms</span></div><div class="line">	<span class="comment">// 7 10ms</span></div><div class="line">	<span class="comment">// 8 10ms</span></div><div class="line">	<span class="comment">// 9 10ms</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>概念介绍<br>限流速率一般表示为 rate/s 即一秒内rate个请求</p>
+<p>源码讲解<br>构造限流器<br>首先是构造一个Limiter 里面有一个perRequest 这是关键的一个变量，表示每个请求之间相差的间隔时间，这是此组件的算法核心思想，也就是说将请求排队，一秒之内有rate个请求，将这些请求排队，挨个来，每个请求的间隔就是1s/rate 从来达到 1s内rate个请求的概念，从而达到限流的目的。<br><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// New returns a Limiter that will limit to the given RPS.</span></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">New</span><span class="params">(rate <span class="keyword">int</span>, opts ...Option)</span> <span class="title">Limiter</span></span> &#123;</div><div class="line">	l := &amp;limiter&#123;</div><div class="line">		perRequest: time.Second / time.Duration(rate),</div><div class="line">		maxSlack:   <span class="number">-10</span> * time.Second / time.Duration(rate),</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">for</span> _, opt := <span class="keyword">range</span> opts &#123;</div><div class="line">		opt(l)</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">if</span> l.clock == <span class="literal">nil</span> &#123;</div><div class="line">		l.clock = clock.New()</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">return</span> l</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>限流器Take() 阻塞方法<br>Take() 方法 每次请求前使用，用来获取批准 返回批准时刻的时间</p>
+<p>第一版本<br><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// Take blocks to ensure that the time spent between multiple</span></div><div class="line"><span class="comment">// Take calls is on average time.Second/rate.</span></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *limiter)</span> <span class="title">Take</span><span class="params">()</span> <span class="title">time</span>.<span class="title">Time</span></span> &#123;</div><div class="line">	t.Lock()</div><div class="line">	<span class="keyword">defer</span> t.Unlock()</div><div class="line"></div><div class="line">	now := t.clock.Now()</div><div class="line"></div><div class="line">	<span class="comment">// If this is our first request, then we allow it.</span></div><div class="line">	<span class="keyword">if</span> t.last.IsZero() &#123;</div><div class="line">		t.last = now</div><div class="line">		<span class="keyword">return</span> t.last</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="comment">// sleepFor calculates how much time we should sleep based on</span></div><div class="line">	<span class="comment">// the perRequest budget and how long the last request took.</span></div><div class="line">	<span class="comment">// Since the request may take longer than the budget, this number</span></div><div class="line">	<span class="comment">// can get negative, and is summed across requests.</span></div><div class="line">	t.sleepFor += t.perRequest - now.Sub(t.last)</div><div class="line"></div><div class="line">	<span class="comment">// We shouldn't allow sleepFor to get too negative, since it would mean that</span></div><div class="line">	<span class="comment">// a service that slowed down a lot for a short period of time would get</span></div><div class="line">	<span class="comment">// a much higher RPS following that.</span></div><div class="line">	<span class="keyword">if</span> t.sleepFor &lt; t.maxSlack &#123;</div><div class="line">		t.sleepFor = t.maxSlack</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="comment">// If sleepFor is positive, then we should sleep now.</span></div><div class="line">	<span class="keyword">if</span> t.sleepFor &gt; <span class="number">0</span> &#123;</div><div class="line">		t.clock.Sleep(t.sleepFor)</div><div class="line">		t.last = now.Add(t.sleepFor)</div><div class="line">		t.sleepFor = <span class="number">0</span></div><div class="line">	&#125; <span class="keyword">else</span> &#123;</div><div class="line">		t.last = now</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">return</span> t.last</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>第二版本<br><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// Take blocks to ensure that the time spent between multiple</span></div><div class="line"><span class="comment">// Take calls is on average time.Second/rate.</span></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *limiter)</span> <span class="title">Take</span><span class="params">()</span> <span class="title">time</span>.<span class="title">Time</span></span> &#123;</div><div class="line">	newState := state&#123;&#125;</div><div class="line">	taken := <span class="literal">false</span></div><div class="line">	<span class="keyword">for</span> !taken &#123;</div><div class="line">		now := t.clock.Now()</div><div class="line"></div><div class="line">		previousStatePointer := atomic.LoadPointer(&amp;t.state)</div><div class="line">		oldState := (*state)(previousStatePointer)</div><div class="line"></div><div class="line">		newState = state&#123;&#125;</div><div class="line">		newState.last = now</div><div class="line"></div><div class="line">		<span class="comment">// If this is our first request, then we allow it.</span></div><div class="line">		<span class="keyword">if</span> oldState.last.IsZero() &#123;</div><div class="line">			taken = atomic.CompareAndSwapPointer(&amp;t.state, previousStatePointer, unsafe.Pointer(&amp;newState))</div><div class="line">			<span class="keyword">continue</span></div><div class="line">		&#125;</div><div class="line"></div><div class="line">		<span class="comment">// sleepFor calculates how much time we should sleep based on</span></div><div class="line">		<span class="comment">// the perRequest budget and how long the last request took.</span></div><div class="line">		<span class="comment">// Since the request may take longer than the budget, this number</span></div><div class="line">		<span class="comment">// can get negative, and is summed across requests.</span></div><div class="line">		newState.sleepFor += t.perRequest - now.Sub(oldState.last)</div><div class="line">		<span class="comment">// We shouldn't allow sleepFor to get too negative, since it would mean that</span></div><div class="line">		<span class="comment">// a service that slowed down a lot for a short period of time would get</span></div><div class="line">		<span class="comment">// a much higher RPS following that.</span></div><div class="line">		<span class="keyword">if</span> newState.sleepFor &lt; t.maxSlack &#123;</div><div class="line">			newState.sleepFor = t.maxSlack</div><div class="line">		&#125;</div><div class="line">		<span class="keyword">if</span> newState.sleepFor &gt; <span class="number">0</span> &#123;</div><div class="line">			newState.last = newState.last.Add(newState.sleepFor)</div><div class="line">		&#125;</div><div class="line">		taken = atomic.CompareAndSwapPointer(&amp;t.state, previousStatePointer, unsafe.Pointer(&amp;newState))</div><div class="line">	&#125;</div><div class="line">	t.clock.Sleep(newState.sleepFor)</div><div class="line">	<span class="keyword">return</span> newState.last</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>第二版本采用原子操作+for的自旋操作来替代lock操作，这样做的目的是减少协程锁竞争。 两个版本不管是用锁还是原子操作本质都是让请求排队，第一版本存在锁竞争，然后排队sleep，第二版本避免锁竞争，但是所有协程可能很快跳出for循环然后都会在sleep处sleep。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Technology/" rel="tag"># Technology</a>
+          
+        </div>
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/03/01/tcp 原理浅谈与IO 模型浅谈/" rel="next" title="TCP协议详解">
+                <i class="fa fa-chevron-left"></i> TCP协议详解
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2020/08/01/go-micro 源码解析/" rel="prev" title="Go-micro 框架解析">
+                Go-micro 框架解析 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/images/avatar.png"
+               alt="JasonChen -- a backend programmer who passion for technology" />
+          <p class="site-author-name" itemprop="name">JasonChen -- a backend programmer who passion for technology</p>
+          <p class="site-description motion-element" itemprop="description"></p>
+        </div>
+        <nav class="site-state motion-element">
+        
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives">
+                <span class="site-state-item-count">14</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            <div class="site-state-item site-state-categories">
+              <a href="/categories">
+                <span class="site-state-item-count">11</span>
+                <span class="site-state-item-name">分类</span>
+              </a>
+            </div>
+          
+
+          
+            <div class="site-state-item site-state-tags">
+              <a href="/tags">
+                <span class="site-state-item-count">3</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#信号量限流"><span class="nav-number">1.</span> <span class="nav-text">信号量限流</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#限流算法"><span class="nav-number"></span> <span class="nav-text">限流算法</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#uber-开源实现RateLimit-源码解析"><span class="nav-number">1.</span> <span class="nav-text">uber 开源实现RateLimit 源码解析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#引入方式"><span class="nav-number">1.1.</span> <span class="nav-text">引入方式</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">JasonChen -- a backend programmer who passion for technology</span>
+</div>
+
+
+<div class="powered-by">
+  由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Muse
+  </a>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    <div class="back-to-top">
+      <i class="fa fa-arrow-up"></i>
+    </div>
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+
+</body>
+</html>
