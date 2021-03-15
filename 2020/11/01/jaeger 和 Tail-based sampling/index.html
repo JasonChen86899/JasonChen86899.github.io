@@ -84,16 +84,16 @@
 
 
 
-<meta name="description" content="聊聊微服务架构微服务架构风格就是一种将单个应用拆分成一组小服务开发的方法，每一个小服务运行在它自己的进程中并且使用轻量的协议通信，通常是一个HTTP资源API。这些服务围绕业务能力构建并且由自动化部署机器部署。这些服务有着最小化的中央管理，这个中央管理可以使用不同语言编写并使用不同的数据存储技术。———— James Lewis and Martin Fowler">
+<meta name="description" content="JaegerUber 开源的分布式链路追踪组件。主要是将微服务的每次请求链路收集上报，然后给内部开发人员提供请求链路问题的排查">
 <meta property="og:type" content="article">
-<meta property="og:title" content="小谈微服务架构">
-<meta property="og:url" content="https://github.com/JasonChen86899/2017/09/15/微服务/index.html">
+<meta property="og:title" content="jaeger 和 Tail-based sampling">
+<meta property="og:url" content="https://github.com/JasonChen86899/2020/11/01/jaeger 和 Tail-based sampling/index.html">
 <meta property="og:site_name" content="Goober Blog">
-<meta property="og:description" content="聊聊微服务架构微服务架构风格就是一种将单个应用拆分成一组小服务开发的方法，每一个小服务运行在它自己的进程中并且使用轻量的协议通信，通常是一个HTTP资源API。这些服务围绕业务能力构建并且由自动化部署机器部署。这些服务有着最小化的中央管理，这个中央管理可以使用不同语言编写并使用不同的数据存储技术。———— James Lewis and Martin Fowler">
-<meta property="og:updated_time" content="2017-12-30T13:43:57.151Z">
+<meta property="og:description" content="JaegerUber 开源的分布式链路追踪组件。主要是将微服务的每次请求链路收集上报，然后给内部开发人员提供请求链路问题的排查">
+<meta property="og:updated_time" content="2021-03-15T17:30:31.166Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="小谈微服务架构">
-<meta name="twitter:description" content="聊聊微服务架构微服务架构风格就是一种将单个应用拆分成一组小服务开发的方法，每一个小服务运行在它自己的进程中并且使用轻量的协议通信，通常是一个HTTP资源API。这些服务围绕业务能力构建并且由自动化部署机器部署。这些服务有着最小化的中央管理，这个中央管理可以使用不同语言编写并使用不同的数据存储技术。———— James Lewis and Martin Fowler">
+<meta name="twitter:title" content="jaeger 和 Tail-based sampling">
+<meta name="twitter:description" content="JaegerUber 开源的分布式链路追踪组件。主要是将微服务的每次请求链路收集上报，然后给内部开发人员提供请求链路问题的排查">
 
 
 
@@ -121,13 +121,13 @@
 
 
 
-  <link rel="canonical" href="https://github.com/JasonChen86899/2017/09/15/微服务/"/>
+  <link rel="canonical" href="https://github.com/JasonChen86899/2020/11/01/jaeger 和 Tail-based sampling/"/>
 
 
 
 
 
-  <title> 小谈微服务架构 | Goober Blog </title>
+  <title> jaeger 和 Tail-based sampling | Goober Blog </title>
 </head>
 
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
@@ -260,7 +260,7 @@
   
 
   <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
-  <link itemprop="mainEntityOfPage" href="https://github.com/JasonChen86899/2017/09/15/微服务/">
+  <link itemprop="mainEntityOfPage" href="https://github.com/JasonChen86899/2020/11/01/jaeger 和 Tail-based sampling/">
 
   <span style="display:none" itemprop="author" itemscope itemtype="http://schema.org/Person">
     <meta itemprop="name" content="Goober -- a backend programmer who passion for technology">
@@ -284,7 +284,7 @@
             
             
               
-                小谈微服务架构
+                jaeger 和 Tail-based sampling
               
             
           </h1>
@@ -299,8 +299,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2017-09-15T00:00:00+08:00">
-                2017-09-15
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-11-01T00:00:00+08:00">
+                2020-11-01
               </time>
             
 
@@ -322,8 +322,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/分布式/" itemprop="url" rel="index">
-                    <span itemprop="name">分布式</span>
+                  <a href="/categories/Golang/" itemprop="url" rel="index">
+                    <span itemprop="name">Golang</span>
                   </a>
                 </span>
 
@@ -357,11 +357,23 @@
       
 
       
-        <h1 id="聊聊微服务架构"><a href="#聊聊微服务架构" class="headerlink" title="聊聊微服务架构"></a>聊聊微服务架构</h1><p>微服务架构风格就是一种将单个应用拆分成一组小服务开发的方法，每一个小服务运行在它自己的进程中并且使用轻量的协议通信，通常是一个HTTP资源API。这些服务围绕业务能力构建并且由自动化部署机器部署。这些服务有着最小化的中央管理，这个中央管理可以使用不同语言编写并使用不同的数据存储技术。<br>———— James Lewis and Martin Fowler</p>
-<a id="more"></a>
-<h3 id="微服务架构简述"><a href="#微服务架构简述" class="headerlink" title="微服务架构简述"></a>微服务架构简述</h3><p>作为工程师，在开发一个独立的应用系统时，我们会选择很多方式，比如模块化，组件化然后分工合作最后集成调试验证。那么微服务架构同样给出了另外一种方式，也就是说微服务架构本身对于工程师来说其实是一种新的软件开发方式。这种方式是指工程师开发一组小型服务最后组合成原先我们所需要的应用系统。<br>但是这些小型服务是有条件的，条件就是<br>1.<strong>这些服务跑在自己的进程中，无关于其他服务，通过全自动化的部署方式独自部署</strong>。这是指每个服务依托在一个进程中，不存在多个服务跑在同一个进程中，也无关于其他服务具体内部是什么，采用的是什么语言，当然一个服务不是绝对对应一个进程，事实恰恰相反，一个微型的服务可能由几个进程共同组成。以上条件可以说是微服务独有的特点，这个条件并不是简简单单的将应用独立开来，而是从开发层面根本性的铲除多余的联系，比如开发两个独立的服务，一个服务采用java，一个服务采用go，两个服务各自独立部署，互不影响。<br>2.<strong>采用轻量级的通信机制</strong>。虽然在很多微服务架构中很是推崇http，到那时其作为服务之间的的通信调用显然是很重的，这里需要由每个系统的设计者设计系统通信方式和数据编码也就是这些服务之间达成某种协议，采用同一种模式通信，但各自实现的细节可以不同，类似http只是不再局限于http，比如protobuf。  </p>
-<h3 id="Martin-Fowler-的观点"><a href="#Martin-Fowler-的观点" class="headerlink" title="Martin Fowler 的观点"></a>Martin Fowler 的观点</h3><p>通过阅读Martin Fowler的文章，他提出微服务架构应有的<strong>9个特征</strong><br><strong>1.通过多服务组件化<br>2.围绕业务功能组织<br>3.产品而非项目<br>4.智能端点和“傻瓜”管道<br>5.去中心化的服务治理<br>6.去中心化的数据管理<br>7.基础设施自动化<br>8.容错设计<br>9.演进式设计</strong></p>
-<h3 id="使用微服务的预备条件"><a href="#使用微服务的预备条件" class="headerlink" title="使用微服务的预备条件"></a>使用微服务的预备条件</h3><p>在意识到问服务的优势之后，大部分公司想必会对系统进行微服务化改造，但事情往往不会那么一蹴而就，微服务架构能够解决分布式系统的痛点问题但是却对技术团队提出了高要求。<br>Martin Fowler在其博客中提到，对业务进行微服务改进时需要开发团队具备高于平均水平的技术条件，以下就是Martin Fowler在其博客中提出的一系列预备条件：<br><strong>1.Rapid provisioning ：快速地物理资源的提供能力<br>2.Basic Monitoring : 基础的镜像恢复能力<br>3.Rapid application deployment: 快速应用发布能力<br>以上的能力都体现出一种组织的变化：开发与运维间紧密的协作： DevOps（开发运维一体化）的团队文化</strong><br>除此之外还有很多，比如 根据持续交付以此来跟随和聚焦自身业务；组织集中式的团队；重新组织自己的开发环境以方便开发人员在不同的开发环境下来回切换。<br><em>ps：上周有幸和业界比较出名的几位架构师见面并且聊天，几位架构师聊了下自己公司的现状然后很自然的提到微服务架构，之后提到SpringCloud，其中一位有着10+工作经验的架构师一语道破“玄机”：微服务架构应当是 <strong>合适的语言做合适的事</strong>，而不是大家一说起微服务就是SpringCloud。本人其实很赞同这句话，微服务在将接口独立出来后，更加解放了系统所采用的语言范畴，发挥各个语言该做的事情，让合适的业务可以自由的选择合适的语言，避免系统被某种语言体系所绑定而带来的多种问题。</em></p>
+        <p><a href="https://github.com/jaegertracing/jaeger">Jaeger</a><br>Uber 开源的分布式链路追踪组件。<br>主要是将微服务的每次请求链路收集上报，然后给内部开发人员提供请求链路问题的排查<br><a id="more"></a></p>
+<h3 id="架构解析"><a href="#架构解析" class="headerlink" title="架构解析"></a>架构解析</h3><h4 id="Agent"><a href="#Agent" class="headerlink" title="Agent"></a>Agent</h4><p>开放udp端口，收集业务程序上报span信息，再通过内部reporter上报给collector。<br>上报agent采用的编码格式是thrift。reporter目前版本是grpc，在早期其实用的是thrift，<br>rpc用的uber早期开源的tchannel-go，目前已经废弃，考虑到开源，采用了grpc。</p>
+<h4 id="Collector"><a href="#Collector" class="headerlink" title="Collector"></a>Collector</h4><p>开发grpc端口，收集agent上报的span数据，然后调用storage进行存储。功能比较单一</p>
+<h4 id="Storage"><a href="#Storage" class="headerlink" title="Storage"></a>Storage</h4><p>主要负责span信息的读和写。</p>
+<h4 id="Query"><a href="#Query" class="headerlink" title="Query"></a>Query</h4><p>query 基于<a href="https://github.com/soheilhy/cmux">cmux</a>提供grpc和http查询服务。<br>根据traceID 通过storage去查询一整条链路信息。</p>
+<h4 id="tail-based-sampling"><a href="#tail-based-sampling" class="headerlink" title="tail-based sampling"></a>tail-based sampling</h4><h5 id="定义"><a href="#定义" class="headerlink" title="定义"></a>定义</h5><p>基于尾部的采样，采样决策是在工作流结束时做出的，以便做出更明智的决策，<br>尤其是对于延迟测量，这些延迟只能在完成后才能进行测量。<br>例如，基于尾部的采样在评估跟踪的属性后，可能会收集异常数据，例如长等待时间或罕见错误。<br>但是，为了在工作流程结束时做出决定，系统必须缓冲一些信息，这可能会增加存储开销。<br>基于尾的采样通常用于延迟分析，因为只有在工作流结束之前才能计算端到端延迟。<br>通常，基于尾部的采样是自动完成的，采样确定是在收集器或服务中进行的，<br>这些收集器或服务根据跟踪数据的隔离，独立部分来决定采样。</p>
+<h5 id="社区贡献"><a href="#社区贡献" class="headerlink" title="社区贡献"></a>社区贡献</h5><p>笔者基于尾部采集的定义再结合阿里云中间件大赛关于尾采集的<a href="https://tianchi.aliyun.com/competition/entrance/231790/information" target="_blank" rel="external">赛题</a><br>向Jaeger社区发起了tail-based sampling 特性增强<a href="https://github.com/jaegertracing/jaeger/issues/425#issuecomment-714199820">Issue</a><br>很可惜，在我向社区反馈了我的修改和方案后，社区维护者一直没有回复。<br>所以在本文中，我会继续普及我的设计思路，有更加好的设计思路可以在社区issue下回复我。<br><strong>设计思路</strong><br>jaeger-client-go:</p>
+<ol>
+<li>Add functions which handle with span tags with rpc error or other inner error or http status=5xx</li>
+<li>Add functions which baggage upstream ip and downstream ip.</li>
+<li>Update report span process. When span finished, check tags and baggages, then send to agent</li>
+</ol>
+<p>jaeger:</p>
+<ol>
+<li>Update agent process. When tags has special value, then push to collector otherwise put into buffer maintained few time(time wheel buffer)</li>
+<li>Update collector process. When collector receive special spans, then got downstream ip form them for downstream spans, then loop query until trace end.</li>
+</ol>
 
       
     </div>
@@ -394,8 +406,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/02/25/Paxos详解/" rel="next" title="Paxos 算法详解">
-                <i class="fa fa-chevron-left"></i> Paxos 算法详解
+              <a href="/2020/08/01/go-micro 源码解析/" rel="next" title="Go-micro 框架解析">
+                <i class="fa fa-chevron-left"></i> Go-micro 框架解析
               </a>
             
           </div>
@@ -403,10 +415,6 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/12/30/智能运维/" rel="prev" title="浅谈智能运维">
-                浅谈智能运维 <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -529,7 +537,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#聊聊微服务架构"><span class="nav-number">1.</span> <span class="nav-text">聊聊微服务架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#微服务架构简述"><span class="nav-number">1.0.1.</span> <span class="nav-text">微服务架构简述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Martin-Fowler-的观点"><span class="nav-number">1.0.2.</span> <span class="nav-text">Martin Fowler 的观点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#使用微服务的预备条件"><span class="nav-number">1.0.3.</span> <span class="nav-text">使用微服务的预备条件</span></a></li></ol></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#架构解析"><span class="nav-number">1.</span> <span class="nav-text">架构解析</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Agent"><span class="nav-number">1.1.</span> <span class="nav-text">Agent</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Collector"><span class="nav-number">1.2.</span> <span class="nav-text">Collector</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Storage"><span class="nav-number">1.3.</span> <span class="nav-text">Storage</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Query"><span class="nav-number">1.4.</span> <span class="nav-text">Query</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#tail-based-sampling"><span class="nav-number">1.5.</span> <span class="nav-text">tail-based sampling</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#定义"><span class="nav-number">1.5.1.</span> <span class="nav-text">定义</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#社区贡献"><span class="nav-number">1.5.2.</span> <span class="nav-text">社区贡献</span></a></li></ol></li></ol></li></ol></div>
             
 
           </div>
