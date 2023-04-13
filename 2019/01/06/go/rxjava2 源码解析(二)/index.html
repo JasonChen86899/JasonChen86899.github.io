@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"jasonchen86899.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="前一篇文章我们讲述到rxjava2 的内部设计模式与原理机制，包括观察者模式和装饰者模式，其本质上都是rxjava2的事件驱动，那么本篇文章将会讲到rxjava2的另外一个功能：异步功能">
+<meta property="og:type" content="article">
+<meta property="og:title" content="rxjava2 源码解析(二)">
+<meta property="og:url" content="https://jasonchen86899.github.io/2019/01/06/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%BA%8C)/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="前一篇文章我们讲述到rxjava2 的内部设计模式与原理机制，包括观察者模式和装饰者模式，其本质上都是rxjava2的事件驱动，那么本篇文章将会讲到rxjava2的另外一个功能：异步功能">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-01-05T16:00:00.000Z">
+<meta property="article:modified_time" content="2023-04-13T15:30:59.916Z">
+<meta property="article:tag" content="Technology">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://jasonchen86899.github.io/2019/01/06/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%BA%8C)/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'CN'
+  };
+</script>
+
+  <title>rxjava2 源码解析(二) | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="CN">
+    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2019/01/06/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%BA%8C)/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          rxjava2 源码解析(二)
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2019-01-06 00:00:00" itemprop="dateCreated datePublished" datetime="2019-01-06T00:00:00+08:00">2019-01-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-13 23:30:59" itemprop="dateModified" datetime="2023-04-13T23:30:59+08:00">2023-04-13</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/rxjava2/" itemprop="url" rel="index"><span itemprop="name">rxjava2</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>前一篇文章我们讲述到rxjava2 的内部设计模式与原理机制，包括观察者模式和装饰者模式，其本质上都是rxjava2的事件驱动，那么本篇文章将会讲到rxjava2的另外一个功能：异步功能</p>
+<span id="more"></span>
+
+<h4 id="rxjava2-源码解析"><a href="#rxjava2-源码解析" class="headerlink" title="rxjava2 源码解析"></a>rxjava2 源码解析</h4><p>依旧是阅读源码，还是从源码开始带着疑惑去读，前一篇文章我们讲到subcribeOn方法内部的实现涉及线程池：Scheduler.Worker w = scheduler.createWorker() 这边涉及两个重要组件：</p>
+<ol>
+<li>scheduler调度器</li>
+<li>自定义线程池<h5 id="scheduler调度器源码解析"><a href="#scheduler调度器源码解析" class="headerlink" title="scheduler调度器源码解析"></a>scheduler调度器源码解析</h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">Schedulers</span> &#123;</span><br><span class="line">    <span class="meta">@NonNull</span></span><br><span class="line">    <span class="comment">// 针对单一任务设置的单个定时线程池</span></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">final</span> Scheduler SINGLE;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@NonNull</span></span><br><span class="line">    <span class="comment">// 针对计算任务设置的定时线程池的资源池（数组）</span></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">final</span> Scheduler COMPUTATION;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@NonNull</span></span><br><span class="line">    <span class="comment">// 针对IO任务设置的单个可复用的定时线程池</span></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">final</span> Scheduler IO;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@NonNull</span></span><br><span class="line">    <span class="comment">// trampoline翻译是蹦床（佩服作者的脑洞）</span></span><br><span class="line">    这个调度器的源码注释是：任务在当前线程工作（不是线程池）但是不会立即执行，任务会被放入队列并在当前</span><br><span class="line">    的任务完成之后执行。简单点说其实就是入队然后慢慢线性执行（这里巧妙的方法其实和前面我们所讲的回压实现机制基本是一致的，值得借鉴）</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">final</span> Scheduler TRAMPOLINE;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@NonNull</span></span><br><span class="line">    <span class="comment">// 单个的周期线程池和single基本一致唯一不同的是single对thread进行了一个简单的NonBlocking封装，这个封装从源码来看基本没有作用，只是一个marker interface标志接口</span></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">final</span> Scheduler NEW_THREAD;</span><br></pre></td></tr></table></figure>
+一共五种调度器，分别对应不同的场景，当然企业可以针对自身的场景设置自己的调度器<h6 id="computation调度器源码分析"><a href="#computation调度器源码分析" class="headerlink" title="computation调度器源码分析"></a>computation调度器源码分析</h6>computation调度器针对大量计算场景，在后端并发场景会更多的用到，那么其是如何实现的呢？接下来带着疑惑进行源码分析<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">ComputationScheduler</span> <span class="keyword">extends</span> <span class="title class_">Scheduler</span> <span class="keyword">implements</span> <span class="title class_">SchedulerMultiWorkerSupport</span> &#123;</span><br><span class="line">  <span class="comment">// 资源池</span></span><br><span class="line">  <span class="keyword">final</span> AtomicReference&lt;FixedSchedulerPool&gt; pool;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 这是computationScheduler类中实现的createWork()方法</span></span><br><span class="line">  <span class="keyword">public</span> Worker <span class="title function_">createWorker</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="comment">// 创建EventLoop工作者，入参是一个PoolWorker</span></span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">EventLoopWorker</span>(pool.get().getEventLoop());</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">FixedSchedulerPool</span> <span class="keyword">implements</span> <span class="title class_">SchedulerMultiWorkerSupport</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">int</span> cores;</span><br><span class="line">        <span class="comment">// 资源池工作者，每个工作者其实都是一个定时线程池</span></span><br><span class="line">        <span class="keyword">final</span> PoolWorker[] eventLoops;</span><br><span class="line">        <span class="type">long</span> n;</span><br><span class="line">        <span class="comment">// 对应前面的函数调用</span></span><br><span class="line">        <span class="keyword">public</span> PoolWorker <span class="title function_">getEventLoop</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="type">int</span> <span class="variable">c</span> <span class="operator">=</span> cores;</span><br><span class="line">          <span class="keyword">if</span> (c == <span class="number">0</span>) &#123;</span><br><span class="line">              <span class="keyword">return</span> SHUTDOWN_WORKER;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="comment">// simple round robin, improvements to come</span></span><br><span class="line">          <span class="comment">// 这里其实就是从工作者数组中轮询选出一个工作者</span></span><br><span class="line">          这里其实拥有提升和优化的空间，这里笔者可能会向开源社区提交一个pr</span><br><span class="line">          以此进行比较好的调度器调度</span><br><span class="line">          <span class="keyword">return</span> eventLoops[(<span class="type">int</span>)(n++ % c)];</span><br><span class="line">        &#125;</span><br><span class="line"><span class="comment">// 此处是一个简单的封装        </span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">PoolWorker</span> <span class="keyword">extends</span> <span class="title class_">NewThreadWorker</span> &#123;</span><br><span class="line">        PoolWorker(ThreadFactory threadFactory) &#123;</span><br><span class="line">            <span class="built_in">super</span>(threadFactory);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">NewThreadWorker</span> <span class="keyword">extends</span> <span class="title class_">Scheduler</span>.Worker <span class="keyword">implements</span> <span class="title class_">Disposable</span> &#123;</span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> ScheduledExecutorService executor;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">volatile</span> <span class="type">boolean</span> disposed;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="title function_">NewThreadWorker</span><span class="params">(ThreadFactory threadFactory)</span> &#123;</span><br><span class="line">      <span class="comment">// 进行定时线程池的初始化</span></span><br><span class="line">      executor = SchedulerPoolFactory.create(threadFactory);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">static</span> ScheduledExecutorService <span class="title function_">create</span><span class="params">(ThreadFactory factory)</span> &#123;</span><br><span class="line">    <span class="keyword">final</span> <span class="type">ScheduledExecutorService</span> <span class="variable">exec</span> <span class="operator">=</span></span><br><span class="line">    <span class="comment">// 初始化一个定时线程池</span></span><br><span class="line">    Executors.newScheduledThreadPool(<span class="number">1</span>, factory);</span><br><span class="line">    tryPutIntoPool(PURGE_ENABLED, exec);</span><br><span class="line">    <span class="keyword">return</span> exec;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+上述代码清晰的展示了computation调度器的实现细节，这里需要说明的是定时线程池的core设置为1，线程池的个数最多为cpu数量，这里涉及到ScheduledThreadPoolExecutor定时线程池的原理，简单的说起内部是一个可自动增长的数组（队列）类似于ArrayList，也就是说队列永远不会满，线程池中的线程数不会增加。<br>接下来结合订阅线程和发布线程分析其之间如何进行沟通的本质<br>发布线程在上一篇的文章已经提到，内部是一个worker，那么订阅线程也是么，很显然必须是的，接下来我们来看下源代码：<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br><span class="line">410</span><br><span class="line">411</span><br><span class="line">412</span><br><span class="line">413</span><br><span class="line">414</span><br><span class="line">415</span><br><span class="line">416</span><br><span class="line">417</span><br><span class="line">418</span><br><span class="line">419</span><br><span class="line">420</span><br><span class="line">421</span><br><span class="line">422</span><br><span class="line">423</span><br><span class="line">424</span><br><span class="line">425</span><br><span class="line">426</span><br><span class="line">427</span><br><span class="line">428</span><br><span class="line">429</span><br><span class="line">430</span><br><span class="line">431</span><br><span class="line">432</span><br><span class="line">433</span><br><span class="line">434</span><br><span class="line">435</span><br><span class="line">436</span><br><span class="line">437</span><br><span class="line">438</span><br><span class="line">439</span><br><span class="line">440</span><br><span class="line">441</span><br><span class="line">442</span><br><span class="line">443</span><br><span class="line">444</span><br><span class="line">445</span><br><span class="line">446</span><br><span class="line">447</span><br><span class="line">448</span><br><span class="line">449</span><br><span class="line">450</span><br><span class="line">451</span><br><span class="line">452</span><br><span class="line">453</span><br><span class="line">454</span><br><span class="line">455</span><br><span class="line">456</span><br><span class="line">457</span><br><span class="line">458</span><br><span class="line">459</span><br><span class="line">460</span><br><span class="line">461</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 还是从subscribeActul开始（原因见上一篇文章）</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">subscribeActual</span><span class="params">(Subscriber&lt;? <span class="built_in">super</span> T&gt; s)</span> &#123;</span><br><span class="line">    <span class="type">Worker</span> <span class="variable">worker</span> <span class="operator">=</span> scheduler.createWorker();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (s <span class="keyword">instanceof</span> ConditionalSubscriber) &#123;</span><br><span class="line">        source.subscribe(<span class="keyword">new</span> <span class="title class_">ObserveOnConditionalSubscriber</span>&lt;T&gt;(</span><br><span class="line">                (ConditionalSubscriber&lt;? <span class="built_in">super</span> T&gt;) s, worker, delayError, prefetch));</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// 其内部封装了一个ObserveOnsubcriber，这是个对下流订阅者的封装，主要什么作用呢，为什么要这个呢，</span></span><br><span class="line">        <span class="comment">// 其实这个涉及订阅线程内部的机制，接着看源代码了解其内部机制</span></span><br><span class="line">        source.subscribe(<span class="keyword">new</span> <span class="title class_">ObserveOnSubscriber</span>&lt;T&gt;(s, worker, delayError, prefetch));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">  <span class="comment">// 基类</span></span><br><span class="line">  <span class="keyword">abstract</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">BaseObserveOnSubscriber</span>&lt;T&gt;</span><br><span class="line">  <span class="keyword">extends</span> <span class="title class_">BasicIntQueueSubscription</span>&lt;T&gt;</span><br><span class="line">  <span class="keyword">implements</span> <span class="title class_">FlowableSubscriber</span>&lt;T&gt;, Runnable &#123;</span><br><span class="line">      <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">long</span> <span class="variable">serialVersionUID</span> <span class="operator">=</span> -<span class="number">8241002408341274697L</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">final</span> Worker worker;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">final</span> <span class="type">boolean</span> delayError;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">final</span> <span class="type">int</span> prefetch;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">final</span> <span class="type">int</span> limit;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">final</span> AtomicLong requested;</span><br><span class="line"></span><br><span class="line">      Subscription upstream;</span><br><span class="line"></span><br><span class="line">      SimpleQueue&lt;T&gt; queue;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">volatile</span> <span class="type">boolean</span> cancelled;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">volatile</span> <span class="type">boolean</span> done;</span><br><span class="line"></span><br><span class="line">      Throwable error;</span><br><span class="line"></span><br><span class="line">      <span class="type">int</span> sourceMode;</span><br><span class="line"></span><br><span class="line">      <span class="type">long</span> produced;</span><br><span class="line"></span><br><span class="line">      <span class="type">boolean</span> outputFused;</span><br><span class="line"></span><br><span class="line">      BaseObserveOnSubscriber(</span><br><span class="line">              Worker worker,</span><br><span class="line">              <span class="type">boolean</span> delayError,</span><br><span class="line">              <span class="type">int</span> prefetch) &#123;</span><br><span class="line">          <span class="built_in">this</span>.worker = worker;</span><br><span class="line">          <span class="built_in">this</span>.delayError = delayError;</span><br><span class="line">          <span class="built_in">this</span>.prefetch = prefetch;</span><br><span class="line">          <span class="built_in">this</span>.requested = <span class="keyword">new</span> <span class="title class_">AtomicLong</span>();</span><br><span class="line">          <span class="built_in">this</span>.limit = prefetch - (prefetch &gt;&gt; <span class="number">2</span>);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">onNext</span><span class="params">(T t)</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (done) &#123;</span><br><span class="line">              <span class="keyword">return</span>;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">if</span> (sourceMode == ASYNC) &#123;</span><br><span class="line">              trySchedule();</span><br><span class="line">              <span class="keyword">return</span>;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="comment">/**</span></span><br><span class="line"><span class="comment">          * 当上游的装修者（上一篇提到的装修者模式）调用onNext方 * 法时，这时并没有类似的去调用下游的onNext方法，那这个</span></span><br><span class="line"><span class="comment">          * 时候其实就是订阅者线程模式的核心原理：采用queue队列</span></span><br><span class="line"><span class="comment">          * 进行数据的store，这里尝试将数据放进队列</span></span><br><span class="line"><span class="comment">          */</span></span><br><span class="line">          <span class="keyword">if</span> (!queue.offer(t)) &#123;</span><br><span class="line">              upstream.cancel();</span><br><span class="line"></span><br><span class="line">              error = <span class="keyword">new</span> <span class="title class_">MissingBackpressureException</span>(<span class="string">&quot;Queue is full?!&quot;</span>);</span><br><span class="line">              done = <span class="literal">true</span>;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="comment">// 开启订阅者线程池模式的调度，具体实现在子类中实现</span></span><br><span class="line">          trySchedule();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">onError</span><span class="params">(Throwable t)</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (done) &#123;</span><br><span class="line">              RxJavaPlugins.onError(t);</span><br><span class="line">              <span class="keyword">return</span>;</span><br><span class="line">          &#125;</span><br><span class="line">          error = t;</span><br><span class="line">          done = <span class="literal">true</span>;</span><br><span class="line">          trySchedule();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">onComplete</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (!done) &#123;</span><br><span class="line">              done = <span class="literal">true</span>;</span><br><span class="line">              trySchedule();</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 这里并没有向上传递request请求，而是把自己当做数据发射者进行request计数</span></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">request</span><span class="params">(<span class="type">long</span> n)</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (SubscriptionHelper.validate(n)) &#123;</span><br><span class="line">              BackpressureHelper.add(requested, n);</span><br><span class="line">              <span class="comment">// 开启调度</span></span><br><span class="line">              trySchedule();</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">cancel</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (cancelled) &#123;</span><br><span class="line">              <span class="keyword">return</span>;</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          cancelled = <span class="literal">true</span>;</span><br><span class="line">          upstream.cancel();</span><br><span class="line">          worker.dispose();</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (getAndIncrement() == <span class="number">0</span>) &#123;</span><br><span class="line">              queue.clear();</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 调度代码</span></span><br><span class="line">      <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">trySchedule</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="comment">// 上一篇文章讲过这个的用法</span></span><br><span class="line">          <span class="keyword">if</span> (getAndIncrement() != <span class="number">0</span>) &#123;</span><br><span class="line">              <span class="keyword">return</span>;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="comment">// 启用一个work来进行任务的执行 this对象说明实现了runable接口</span></span><br><span class="line">          worker.schedule(<span class="built_in">this</span>);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 调度实现的代码</span></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (outputFused) &#123;</span><br><span class="line">              runBackfused();</span><br><span class="line">          &#125; <span class="keyword">else</span> <span class="keyword">if</span> (sourceMode == SYNC) &#123;</span><br><span class="line">              runSync();</span><br><span class="line">          &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">              <span class="comment">// 一般会调用runAsync方法</span></span><br><span class="line">              runAsync();</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">abstract</span> <span class="keyword">void</span> <span class="title function_">runBackfused</span><span class="params">()</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">abstract</span> <span class="keyword">void</span> <span class="title function_">runSync</span><span class="params">()</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">abstract</span> <span class="keyword">void</span> <span class="title function_">runAsync</span><span class="params">()</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">final</span> <span class="type">boolean</span> <span class="title function_">checkTerminated</span><span class="params">(<span class="type">boolean</span> d, <span class="type">boolean</span> empty, Subscriber&lt;?&gt; a)</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (cancelled) &#123;</span><br><span class="line">              clear();</span><br><span class="line">              <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">if</span> (d) &#123;</span><br><span class="line">              <span class="keyword">if</span> (delayError) &#123;</span><br><span class="line">                  <span class="keyword">if</span> (empty) &#123;</span><br><span class="line">                      cancelled = <span class="literal">true</span>;</span><br><span class="line">                      <span class="type">Throwable</span> <span class="variable">e</span> <span class="operator">=</span> error;</span><br><span class="line">                      <span class="keyword">if</span> (e != <span class="literal">null</span>) &#123;</span><br><span class="line">                          a.onError(e);</span><br><span class="line">                      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                          a.onComplete();</span><br><span class="line">                      &#125;</span><br><span class="line">                      worker.dispose();</span><br><span class="line">                      <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">                  &#125;</span><br><span class="line">              &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                  <span class="type">Throwable</span> <span class="variable">e</span> <span class="operator">=</span> error;</span><br><span class="line">                  <span class="keyword">if</span> (e != <span class="literal">null</span>) &#123;</span><br><span class="line">                      cancelled = <span class="literal">true</span>;</span><br><span class="line">                      clear();</span><br><span class="line">                      a.onError(e);</span><br><span class="line">                      worker.dispose();</span><br><span class="line">                      <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">                  &#125; <span class="keyword">else</span></span><br><span class="line">                  <span class="keyword">if</span> (empty) &#123;</span><br><span class="line">                      cancelled = <span class="literal">true</span>;</span><br><span class="line">                      a.onComplete();</span><br><span class="line">                      worker.dispose();</span><br><span class="line">                      <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">                  &#125;</span><br><span class="line">              &#125;</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">final</span> <span class="type">int</span> <span class="title function_">requestFusion</span><span class="params">(<span class="type">int</span> requestedMode)</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> ((requestedMode &amp; ASYNC) != <span class="number">0</span>) &#123;</span><br><span class="line">              outputFused = <span class="literal">true</span>;</span><br><span class="line">              <span class="keyword">return</span> ASYNC;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">return</span> NONE;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">clear</span><span class="params">()</span> &#123;</span><br><span class="line">          queue.clear();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">final</span> <span class="type">boolean</span> <span class="title function_">isEmpty</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="keyword">return</span> queue.isEmpty();</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 具体实现类</span></span><br><span class="line">  <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">ObserveOnSubscriber</span>&lt;T&gt; <span class="keyword">extends</span> <span class="title class_">BaseObserveOnSubscriber</span>&lt;T&gt;</span><br><span class="line">  <span class="keyword">implements</span> <span class="title class_">FlowableSubscriber</span>&lt;T&gt; &#123;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">long</span> <span class="variable">serialVersionUID</span> <span class="operator">=</span> -<span class="number">4547113800637756442L</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">final</span> Subscriber&lt;? <span class="built_in">super</span> T&gt; downstream;</span><br><span class="line"></span><br><span class="line">      ObserveOnSubscriber(</span><br><span class="line">              Subscriber&lt;? <span class="built_in">super</span> T&gt; actual,</span><br><span class="line">              Worker worker,</span><br><span class="line">              <span class="type">boolean</span> delayError,</span><br><span class="line">              <span class="type">int</span> prefetch) &#123;</span><br><span class="line">          <span class="built_in">super</span>(worker, delayError, prefetch);</span><br><span class="line">          <span class="built_in">this</span>.downstream = actual;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">//这是上游回调这个subscriber时调用的方法，详情见上一篇文章</span></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onSubscribe</span><span class="params">(Subscription s)</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (SubscriptionHelper.validate(<span class="built_in">this</span>.upstream, s)) &#123;</span><br><span class="line">              <span class="built_in">this</span>.upstream = s;</span><br><span class="line"></span><br><span class="line">              <span class="keyword">if</span> (s <span class="keyword">instanceof</span> QueueSubscription) &#123;</span><br><span class="line">                  <span class="meta">@SuppressWarnings(&quot;unchecked&quot;)</span></span><br><span class="line">                  QueueSubscription&lt;T&gt; f = (QueueSubscription&lt;T&gt;) s;</span><br><span class="line"></span><br><span class="line">                  <span class="type">int</span> <span class="variable">m</span> <span class="operator">=</span> f.requestFusion(ANY | BOUNDARY);</span><br><span class="line"></span><br><span class="line">                  <span class="keyword">if</span> (m == SYNC) &#123;</span><br><span class="line">                      sourceMode = SYNC;</span><br><span class="line">                      queue = f;</span><br><span class="line">                      done = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">                      downstream.onSubscribe(<span class="built_in">this</span>);</span><br><span class="line">                      <span class="keyword">return</span>;</span><br><span class="line">                  &#125; <span class="keyword">else</span></span><br><span class="line">                  <span class="keyword">if</span> (m == ASYNC) &#123;</span><br><span class="line">                      sourceMode = ASYNC;</span><br><span class="line">                      queue = f;</span><br><span class="line"></span><br><span class="line">                      downstream.onSubscribe(<span class="built_in">this</span>);</span><br><span class="line"></span><br><span class="line">                      s.request(prefetch);</span><br><span class="line"></span><br><span class="line">                      <span class="keyword">return</span>;</span><br><span class="line">                  &#125;</span><br><span class="line">              &#125;</span><br><span class="line">              <span class="comment">// 设置缓存队列</span></span><br><span class="line">              <span class="comment">// 这里涉及一个特别之处就是预获取（提前获取数据）</span></span><br><span class="line">              queue = <span class="keyword">new</span> <span class="title class_">SpscArrayQueue</span>&lt;T&gt;(prefetch);</span><br><span class="line">              <span class="comment">// 触发下游subscriber 如果有request则会触发下游对上游数据的request</span></span><br><span class="line">              downstream.onSubscribe(<span class="built_in">this</span>);</span><br><span class="line">              <span class="comment">// 请求上游数据 上面的代码和这行代码就是起到承上启下的一个作用，也就是预获取，放在队列中</span></span><br><span class="line">              s.request(prefetch);</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">void</span> <span class="title function_">runSync</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="type">int</span> <span class="variable">missed</span> <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">final</span> Subscriber&lt;? <span class="built_in">super</span> T&gt; a = downstream;</span><br><span class="line">          <span class="keyword">final</span> SimpleQueue&lt;T&gt; q = queue;</span><br><span class="line"></span><br><span class="line">          <span class="type">long</span> <span class="variable">e</span> <span class="operator">=</span> produced;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">for</span> (;;) &#123;</span><br><span class="line"></span><br><span class="line">              <span class="type">long</span> <span class="variable">r</span> <span class="operator">=</span> requested.get();</span><br><span class="line"></span><br><span class="line">              <span class="keyword">while</span> (e != r) &#123;</span><br><span class="line">                  T v;</span><br><span class="line"></span><br><span class="line">                  <span class="keyword">try</span> &#123;</span><br><span class="line">                      v = q.poll();</span><br><span class="line">                  &#125; <span class="keyword">catch</span> (Throwable ex) &#123;</span><br><span class="line">                      Exceptions.throwIfFatal(ex);</span><br><span class="line">                      cancelled = <span class="literal">true</span>;</span><br><span class="line">                      upstream.cancel();</span><br><span class="line">                      a.onError(ex);</span><br><span class="line">                      worker.dispose();</span><br><span class="line">                      <span class="keyword">return</span>;</span><br><span class="line">                  &#125;</span><br><span class="line"></span><br><span class="line">                  <span class="keyword">if</span> (cancelled) &#123;</span><br><span class="line">                      <span class="keyword">return</span>;</span><br><span class="line">                  &#125;</span><br><span class="line">                  <span class="keyword">if</span> (v == <span class="literal">null</span>) &#123;</span><br><span class="line">                      cancelled = <span class="literal">true</span>;</span><br><span class="line">                      a.onComplete();</span><br><span class="line">                      worker.dispose();</span><br><span class="line">                      <span class="keyword">return</span>;</span><br><span class="line">                  &#125;</span><br><span class="line"></span><br><span class="line">                  a.onNext(v);</span><br><span class="line"></span><br><span class="line">                  e++;</span><br><span class="line">              &#125;</span><br><span class="line"></span><br><span class="line">              <span class="keyword">if</span> (cancelled) &#123;</span><br><span class="line">                  <span class="keyword">return</span>;</span><br><span class="line">              &#125;</span><br><span class="line"></span><br><span class="line">              <span class="keyword">if</span> (q.isEmpty()) &#123;</span><br><span class="line">                  cancelled = <span class="literal">true</span>;</span><br><span class="line">                  a.onComplete();</span><br><span class="line">                  worker.dispose();</span><br><span class="line">                  <span class="keyword">return</span>;</span><br><span class="line">              &#125;</span><br><span class="line"></span><br><span class="line">              <span class="type">int</span> <span class="variable">w</span> <span class="operator">=</span> get();</span><br><span class="line">              <span class="keyword">if</span> (missed == w) &#123;</span><br><span class="line">                  produced = e;</span><br><span class="line">                  missed = addAndGet(-missed);</span><br><span class="line">                  <span class="keyword">if</span> (missed == <span class="number">0</span>) &#123;</span><br><span class="line">                      <span class="keyword">break</span>;</span><br><span class="line">                  &#125;</span><br><span class="line">              &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                  missed = w;</span><br><span class="line">              &#125;</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">void</span> <span class="title function_">runAsync</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="type">int</span> <span class="variable">missed</span> <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">final</span> Subscriber&lt;? <span class="built_in">super</span> T&gt; a = downstream;</span><br><span class="line">          <span class="keyword">final</span> SimpleQueue&lt;T&gt; q = queue;</span><br><span class="line"></span><br><span class="line">          <span class="type">long</span> <span class="variable">e</span> <span class="operator">=</span> produced;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">for</span> (;;) &#123;</span><br><span class="line"></span><br><span class="line">              <span class="type">long</span> <span class="variable">r</span> <span class="operator">=</span> requested.get();</span><br><span class="line"></span><br><span class="line">              <span class="keyword">while</span> (e != r) &#123;</span><br><span class="line">                  <span class="type">boolean</span> <span class="variable">d</span> <span class="operator">=</span> done;</span><br><span class="line">                  T v;</span><br><span class="line"></span><br><span class="line">                  <span class="keyword">try</span> &#123;</span><br><span class="line">                      <span class="comment">// 获取数据</span></span><br><span class="line">                      v = q.poll();</span><br><span class="line">                  &#125; <span class="keyword">catch</span> (Throwable ex) &#123;</span><br><span class="line">                      Exceptions.throwIfFatal(ex);</span><br><span class="line"></span><br><span class="line">                      cancelled = <span class="literal">true</span>;</span><br><span class="line">                      upstream.cancel();</span><br><span class="line">                      q.clear();</span><br><span class="line"></span><br><span class="line">                      a.onError(ex);</span><br><span class="line">                      worker.dispose();</span><br><span class="line">                      <span class="keyword">return</span>;</span><br><span class="line">                  &#125;</span><br><span class="line"></span><br><span class="line">                  <span class="type">boolean</span> <span class="variable">empty</span> <span class="operator">=</span> v == <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">                  <span class="keyword">if</span> (checkTerminated(d, empty, a)) &#123;</span><br><span class="line">                      <span class="keyword">return</span>;</span><br><span class="line">                  &#125;</span><br><span class="line"></span><br><span class="line">                  <span class="keyword">if</span> (empty) &#123;</span><br><span class="line">                      <span class="keyword">break</span>;</span><br><span class="line">                  &#125;</span><br><span class="line"></span><br><span class="line">                  a.onNext(v);</span><br><span class="line"></span><br><span class="line">                  e++;</span><br><span class="line">                  <span class="comment">// limit = prefetch - (prefetch &gt;&gt; 2)</span></span><br><span class="line">                  <span class="comment">// prefetch  = BUFFER_SIZE（上一篇文章提到的默认128）</span></span><br><span class="line">                  <span class="comment">// 前面说过，订阅者把自己当成一个发射者，那数/据从哪里来呢，而且还要持续有数据，那么下面代码说明了数据来源，当数据达到limit，开始新的数据的prefetch，每次preftch的数量是limit</span></span><br><span class="line">                  <span class="keyword">if</span> (e == limit) &#123;</span><br><span class="line">                      <span class="keyword">if</span> (r != Long.MAX_VALUE) &#123;</span><br><span class="line">                          r = requested.addAndGet(-e);</span><br><span class="line">                      &#125;</span><br><span class="line">                      upstream.request(e);</span><br><span class="line">                      e = <span class="number">0L</span>;</span><br><span class="line">                  &#125;</span><br><span class="line">              &#125;</span><br><span class="line"></span><br><span class="line">              <span class="keyword">if</span> (e == r &amp;&amp; checkTerminated(done, q.isEmpty(), a)) &#123;</span><br><span class="line">                  <span class="keyword">return</span>;</span><br><span class="line">              &#125;</span><br><span class="line"></span><br><span class="line">              <span class="comment">// 下面的代码机制在上一篇讲过主要涉及异步编程技巧</span></span><br><span class="line">              <span class="type">int</span> <span class="variable">w</span> <span class="operator">=</span> get();</span><br><span class="line">              <span class="keyword">if</span> (missed == w) &#123;</span><br><span class="line">                  produced = e;</span><br><span class="line">                  missed = addAndGet(-missed);</span><br><span class="line">                  <span class="keyword">if</span> (missed == <span class="number">0</span>) &#123;</span><br><span class="line">                      <span class="keyword">break</span>;</span><br><span class="line">                  &#125;</span><br><span class="line">              &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                  missed = w;</span><br><span class="line">              &#125;</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">void</span> <span class="title function_">runBackfused</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="type">int</span> <span class="variable">missed</span> <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">for</span> (;;) &#123;</span><br><span class="line"></span><br><span class="line">              <span class="keyword">if</span> (cancelled) &#123;</span><br><span class="line">                  <span class="keyword">return</span>;</span><br><span class="line">              &#125;</span><br><span class="line"></span><br><span class="line">              <span class="type">boolean</span> <span class="variable">d</span> <span class="operator">=</span> done;</span><br><span class="line"></span><br><span class="line">              downstream.onNext(<span class="literal">null</span>);</span><br><span class="line"></span><br><span class="line">              <span class="keyword">if</span> (d) &#123;</span><br><span class="line">                  cancelled = <span class="literal">true</span>;</span><br><span class="line">                  <span class="type">Throwable</span> <span class="variable">e</span> <span class="operator">=</span> error;</span><br><span class="line">                  <span class="keyword">if</span> (e != <span class="literal">null</span>) &#123;</span><br><span class="line">                      downstream.onError(e);</span><br><span class="line">                  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                      downstream.onComplete();</span><br><span class="line">                  &#125;</span><br><span class="line">                  worker.dispose();</span><br><span class="line">                  <span class="keyword">return</span>;</span><br><span class="line">              &#125;</span><br><span class="line"></span><br><span class="line">              missed = addAndGet(-missed);</span><br><span class="line">              <span class="keyword">if</span> (missed == <span class="number">0</span>) &#123;</span><br><span class="line">                  <span class="keyword">break</span>;</span><br><span class="line">              &#125;</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Nullable</span></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> T <span class="title function_">poll</span><span class="params">()</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">          <span class="type">T</span> <span class="variable">v</span> <span class="operator">=</span> queue.poll();</span><br><span class="line">          <span class="keyword">if</span> (v != <span class="literal">null</span> &amp;&amp; sourceMode != SYNC) &#123;</span><br><span class="line">              <span class="type">long</span> <span class="variable">p</span> <span class="operator">=</span> produced + <span class="number">1</span>;</span><br><span class="line">              <span class="keyword">if</span> (p == limit) &#123;</span><br><span class="line">                  produced = <span class="number">0</span>;</span><br><span class="line">                  upstream.request(p);</span><br><span class="line">              &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                  produced = p;</span><br><span class="line">              &#125;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">return</span> v;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+为何要将订阅者这样区别设置呢，其实原因很简单，<strong>订阅者和发布者需要不同的线程机制异步地执行，比如订阅者需要computation的线程机制来进行大量的耗时数据计算，但又要保持一致的装修者模式，所以源码的做法是订阅者这边打破回调的调用流，采用数据队列进行两个线程池之间的数据传送</strong>。<h4 id="本文总结"><a href="#本文总结" class="headerlink" title="本文总结"></a>本文总结</h4>笔者喜欢总结，总结意味着我们反思和学习前面的知识点，应用点以及自身的不足。</li>
+<li>rxjava2线程调度的原理机制，不同场景下线程机制需要进行定制</li>
+<li>rxjava2生产和消费的异步原理和实现方式</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Technology/" rel="tag"># Technology</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/12/19/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%B8%80)/" rel="prev" title="rxjava2 源码解析(一)">
+      <i class="fa fa-chevron-left"></i> rxjava2 源码解析(一)
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/02/01/java/Netty%E4%B8%ADEpoll%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/" rel="next" title="Netty源码解析-Epoll篇">
+      Netty源码解析-Epoll篇 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#rxjava2-%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="nav-number">1.</span> <span class="nav-text">rxjava2 源码解析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#scheduler%E8%B0%83%E5%BA%A6%E5%99%A8%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="nav-number">1.1.</span> <span class="nav-text">scheduler调度器源码解析</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#computation%E8%B0%83%E5%BA%A6%E5%99%A8%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90"><span class="nav-number">1.1.1.</span> <span class="nav-text">computation调度器源码分析</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9C%AC%E6%96%87%E6%80%BB%E7%BB%93"><span class="nav-number">2.</span> <span class="nav-text">本文总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

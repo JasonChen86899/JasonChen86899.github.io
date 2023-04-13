@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"jasonchen86899.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="限流器 顾名思义用来对高并发的请求进行流量限制的组件。为啥需要进行流量限制。首先后端服务由于各个业务的不同和复杂性，各自在容器部署的时候都可能会有单台的瓶颈，超过瓶颈会导致内存或者cpu的瓶颈，进而导致发生服务不可用或者单台容器直接挂掉或重启。流量的限制在众多微服务和service mesh系统中多有应用。笔者在本文的程序示例均以golang作为示例。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="限流器">
+<meta property="og:url" content="https://jasonchen86899.github.io/2020/05/01/go/%E9%99%90%E6%B5%81%E5%99%A8-golang/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="限流器 顾名思义用来对高并发的请求进行流量限制的组件。为啥需要进行流量限制。首先后端服务由于各个业务的不同和复杂性，各自在容器部署的时候都可能会有单台的瓶颈，超过瓶颈会导致内存或者cpu的瓶颈，进而导致发生服务不可用或者单台容器直接挂掉或重启。流量的限制在众多微服务和service mesh系统中多有应用。笔者在本文的程序示例均以golang作为示例。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-04-30T16:00:00.000Z">
+<meta property="article:modified_time" content="2021-01-02T12:44:50.000Z">
+<meta property="article:tag" content="Technology">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://jasonchen86899.github.io/2020/05/01/go/%E9%99%90%E6%B5%81%E5%99%A8-golang/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'CN'
+  };
+</script>
+
+  <title>限流器 | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="CN">
+    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2020/05/01/go/%E9%99%90%E6%B5%81%E5%99%A8-golang/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          限流器
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-05-01 00:00:00" itemprop="dateCreated datePublished" datetime="2020-05-01T00:00:00+08:00">2020-05-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-01-02 20:44:50" itemprop="dateModified" datetime="2021-01-02T20:44:50+08:00">2021-01-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Golang/" itemprop="url" rel="index"><span itemprop="name">Golang</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><strong>限流器</strong> 顾名思义用来对高并发的请求进行流量限制的组件。<br>为啥需要进行流量限制。首先后端服务由于各个业务的不同和复杂性，各自在容器部署的时候都可能会有单台的瓶颈，超过瓶颈会导致内存或者cpu的瓶颈，进而导致发生服务不可用或者单台容器直接挂掉或重启。<br>流量的限制在众多微服务和service mesh系统中多有应用。笔者在本文的程序示例均以golang作为示例。</p>
+<span id="more"></span>
+
+<h4 id="信号量限流"><a href="#信号量限流" class="headerlink" title="信号量限流"></a>信号量限流</h4><p>信号量 在众多开发语言中都会有相关信号量的设计。笔者在阅读一些语言开源实现后，总结出信号量的主要有非阻塞和阻塞两种。<br>信号量两个重要方法 Acquire() 和 Release()  </p>
+<ol>
+<li>非阻塞方式<br>以并发安全的计数方式比如采用原子atomic加减进行</li>
+<li>阻塞方式<br>采用锁或者阻塞队列方式，比如java JUC包中的信号量。以golang为示例如下<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 采用channel作为底层数据结构，从而达到阻塞的获取和使用信号量</span></span><br><span class="line"><span class="keyword">type</span> Semaphore <span class="keyword">struct</span> &#123;</span><br><span class="line">	innerChan <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 初始化信号量，本质初始化一个channel，channel的初始化大小为 信号量数值</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewSemaphore</span><span class="params">(num <span class="type">uint64</span>)</span></span> *Semaphore &#123;</span><br><span class="line">	<span class="keyword">return</span> &amp;Semaphore&#123;</span><br><span class="line">		innerChan: <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;, num),</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 获取信号量，本质是 向channel放入元素，如果同时有很多协程并发获取信号量，则channel则会full阻塞，从而达到控制并发协程数的目的，也即是信号量的控制</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Semaphore)</span></span> Acquire() &#123;</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> s.innerChan &lt;- <span class="keyword">struct</span>&#123;&#125;&#123;&#125;:</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line">		<span class="keyword">default</span>:</span><br><span class="line">			log.Error(<span class="string">&quot;semaphore acquire is blocking&quot;</span>)</span><br><span class="line">			time.Sleep(<span class="number">100</span> * time.Millisecond)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 释放信号量 本质是 从channel中获取元素，由于有acquire的放入元素，所以此处一定能回去到元素 也就能释放成功，default只要是出于安全编程的目的</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *Semaphore)</span></span> Release() &#123;</span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> &lt;-s.innerChan:</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="限流算法"><a href="#限流算法" class="headerlink" title="限流算法"></a>限流算法</h3><p>主流的限流算法分为两种 <strong>漏桶算法</strong>和<strong>令牌桶算法</strong>，关于这两个算法有很多文章和论文都给出了详细的讲解。从原理上看，令牌桶算法和漏桶算法是相反的，一个“进水”，一个是“漏水”。值得一提的是Google Guava开源和Uber开源限流组件均采用漏桶算法。</p>
+<p>所以此处笔者开门见山，直接展示此算法的golang的实现，代码如下</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 此处截取自研的熔断器代码中的限流实现，这是非阻塞的实现</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sp *servicePanel)</span></span> incLimit() <span class="type">error</span> &#123;</span><br><span class="line">	<span class="comment">// 如果大于限制的条件则返回错误</span></span><br><span class="line">	<span class="keyword">if</span> sp.currentLimitCount.Load() &gt; sp.currLimitFunc(<span class="literal">nil</span>) &#123;</span><br><span class="line">		<span class="keyword">return</span> ErrCurrentLimit</span><br><span class="line">	&#125;</span><br><span class="line">	sp.currentLimitCount.Inc()</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sp *servicePanel)</span></span> clearLimit() &#123;</span><br><span class="line">	<span class="comment">// 定期每秒重置计数器，从而达到每秒限制的并发数</span></span><br><span class="line">	<span class="comment">// 比如限制1000req/s，在这里指每秒清理1000的计数值</span></span><br><span class="line"><span class="comment">// 令牌桶是定期放，这里是逆思维，每秒清空，实现不仅占用内存低而且效率高</span></span><br><span class="line">	t := time.NewTicker(time.Second)</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-t.C:</span><br><span class="line">			sp.currentLimitCount.Store(<span class="number">0</span>)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>分析<br>上述的实现实际是比较粗糙的实现，没有严格按照每个请求方按照某个固定速率进行，而是以秒为单位，粗粒度的进行计数清零，这其实会造成某个瞬间双倍的每秒限流个数，虽然看上去不满足要求，但是在这个瞬间其实是只是一个双倍值，正常系统都应该会应付一瞬间双倍限流个数的请求量。<br>改进<br>如果要严格的按照每个请求按照某个固定数值进行，那么可以改进时间的粗力度，具体做法如下</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sp *servicePanel)</span></span> incLimit() <span class="type">error</span> &#123;</span><br><span class="line">	<span class="comment">// 如果大于1则返回错误</span></span><br><span class="line">	<span class="keyword">if</span> sp.currentLimitCount.Load() &gt; <span class="number">1</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> ErrCurrentLimit</span><br><span class="line">	&#125;</span><br><span class="line">	sp.currentLimitCount.Inc()</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(sp *servicePanel)</span></span> clearLimit() &#123;</span><br><span class="line">	<span class="comment">// 1s除以每秒限流个数</span></span><br><span class="line">	t := time.NewTicker(time.Second/time.Duration(sp.currLimitFunc(<span class="literal">nil</span>)))</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-t.C:</span><br><span class="line">			sp.currentLimitCount.Store(<span class="number">0</span>)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="uber-开源实现RateLimit-源码解析"><a href="#uber-开源实现RateLimit-源码解析" class="headerlink" title="uber 开源实现RateLimit 源码解析"></a>uber 开源实现RateLimit 源码解析</h4><h5 id="引入方式"><a href="#引入方式" class="headerlink" title="引入方式"></a>引入方式</h5><p>第一版本<br>go get github.com/uber-go/<a href="mailto:&#x72;&#x61;&#116;&#101;&#x6c;&#x69;&#x6d;&#x69;&#116;&#64;&#x76;&#x30;&#46;&#49;&#x2e;&#48;">&#x72;&#x61;&#116;&#101;&#x6c;&#x69;&#x6d;&#x69;&#116;&#64;&#x76;&#x30;&#46;&#49;&#x2e;&#48;</a></p>
+<p>第二版本<br>go get github.com/uber-go/ratelimit@master</p>
+<p>首先强调一点，跟笔者自研的限流器最大的不同的是，这是一个阻塞调用者的限流组件。先不多说，开始讲解源码<br>Test 示例</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">ExampleRatelimit</span><span class="params">()</span></span> &#123;</span><br><span class="line">	rl := ratelimit.New(<span class="number">100</span>) <span class="comment">// per second</span></span><br><span class="line"></span><br><span class="line">	prev := time.Now()</span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; <span class="number">10</span>; i++ &#123;</span><br><span class="line">		now := rl.Take()</span><br><span class="line">		<span class="keyword">if</span> i &gt; <span class="number">0</span> &#123;</span><br><span class="line">			fmt.Println(i, now.Sub(prev))</span><br><span class="line">		&#125;</span><br><span class="line">		prev = now</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Output:</span></span><br><span class="line">	<span class="comment">// 1 10ms</span></span><br><span class="line">	<span class="comment">// 2 10ms</span></span><br><span class="line">	<span class="comment">// 3 10ms</span></span><br><span class="line">	<span class="comment">// 4 10ms</span></span><br><span class="line">	<span class="comment">// 5 10ms</span></span><br><span class="line">	<span class="comment">// 6 10ms</span></span><br><span class="line">	<span class="comment">// 7 10ms</span></span><br><span class="line">	<span class="comment">// 8 10ms</span></span><br><span class="line">	<span class="comment">// 9 10ms</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>概念介绍<br>限流速率一般表示为 rate/s 即一秒内rate个请求</p>
+<p>源码讲解<br>构造限流器<br>首先是构造一个Limiter 里面有一个perRequest 这是关键的一个变量，表示每个请求之间相差的间隔时间，这是此组件的算法核心思想，也就是说将请求排队，一秒之内有rate个请求，将这些请求排队，挨个来，每个请求的间隔就是1s/rate 从来达到 1s内rate个请求的概念，从而达到限流的目的。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// New returns a Limiter that will limit to the given RPS.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">New</span><span class="params">(rate <span class="type">int</span>, opts ...Option)</span></span> Limiter &#123;</span><br><span class="line">	l := &amp;limiter&#123;</span><br><span class="line">		perRequest: time.Second / time.Duration(rate),</span><br><span class="line">		maxSlack:   <span class="number">-10</span> * time.Second / time.Duration(rate),</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">for</span> _, opt := <span class="keyword">range</span> opts &#123;</span><br><span class="line">		opt(l)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> l.clock == <span class="literal">nil</span> &#123;</span><br><span class="line">		l.clock = clock.New()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> l</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>限流器Take() 阻塞方法<br>Take() 方法 每次请求前使用，用来获取批准 返回批准时刻的时间</p>
+<p>第一版本</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Take blocks to ensure that the time spent between multiple</span></span><br><span class="line"><span class="comment">// Take calls is on average time.Second/rate.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *limiter)</span></span> Take() time.Time &#123;</span><br><span class="line">	t.Lock()</span><br><span class="line">	<span class="keyword">defer</span> t.Unlock()</span><br><span class="line"></span><br><span class="line">	now := t.clock.Now()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// If this is our first request, then we allow it.</span></span><br><span class="line">	<span class="keyword">if</span> t.last.IsZero() &#123;</span><br><span class="line">		t.last = now</span><br><span class="line">		<span class="keyword">return</span> t.last</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// sleepFor calculates how much time we should sleep based on</span></span><br><span class="line">	<span class="comment">// the perRequest budget and how long the last request took.</span></span><br><span class="line">	<span class="comment">// Since the request may take longer than the budget, this number</span></span><br><span class="line">	<span class="comment">// can get negative, and is summed across requests.</span></span><br><span class="line">	t.sleepFor += t.perRequest - now.Sub(t.last)</span><br><span class="line"></span><br><span class="line">	<span class="comment">// We shouldn&#x27;t allow sleepFor to get too negative, since it would mean that</span></span><br><span class="line">	<span class="comment">// a service that slowed down a lot for a short period of time would get</span></span><br><span class="line">	<span class="comment">// a much higher RPS following that.</span></span><br><span class="line">	<span class="keyword">if</span> t.sleepFor &lt; t.maxSlack &#123;</span><br><span class="line">		t.sleepFor = t.maxSlack</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// If sleepFor is positive, then we should sleep now.</span></span><br><span class="line">	<span class="keyword">if</span> t.sleepFor &gt; <span class="number">0</span> &#123;</span><br><span class="line">		t.clock.Sleep(t.sleepFor)</span><br><span class="line">		t.last = now.Add(t.sleepFor)</span><br><span class="line">		t.sleepFor = <span class="number">0</span></span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		t.last = now</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> t.last</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>第二版本</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Take blocks to ensure that the time spent between multiple</span></span><br><span class="line"><span class="comment">// Take calls is on average time.Second/rate.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *limiter)</span></span> Take() time.Time &#123;</span><br><span class="line">	newState := state&#123;&#125;</span><br><span class="line">	taken := <span class="literal">false</span></span><br><span class="line">	<span class="keyword">for</span> !taken &#123;</span><br><span class="line">		now := t.clock.Now()</span><br><span class="line"></span><br><span class="line">		previousStatePointer := atomic.LoadPointer(&amp;t.state)</span><br><span class="line">		oldState := (*state)(previousStatePointer)</span><br><span class="line"></span><br><span class="line">		newState = state&#123;&#125;</span><br><span class="line">		newState.last = now</span><br><span class="line"></span><br><span class="line">		<span class="comment">// If this is our first request, then we allow it.</span></span><br><span class="line">		<span class="keyword">if</span> oldState.last.IsZero() &#123;</span><br><span class="line">			taken = atomic.CompareAndSwapPointer(&amp;t.state, previousStatePointer, unsafe.Pointer(&amp;newState))</span><br><span class="line">			<span class="keyword">continue</span></span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// sleepFor calculates how much time we should sleep based on</span></span><br><span class="line">		<span class="comment">// the perRequest budget and how long the last request took.</span></span><br><span class="line">		<span class="comment">// Since the request may take longer than the budget, this number</span></span><br><span class="line">		<span class="comment">// can get negative, and is summed across requests.</span></span><br><span class="line">		newState.sleepFor += t.perRequest - now.Sub(oldState.last)</span><br><span class="line">		<span class="comment">// We shouldn&#x27;t allow sleepFor to get too negative, since it would mean that</span></span><br><span class="line">		<span class="comment">// a service that slowed down a lot for a short period of time would get</span></span><br><span class="line">		<span class="comment">// a much higher RPS following that.</span></span><br><span class="line">		<span class="keyword">if</span> newState.sleepFor &lt; t.maxSlack &#123;</span><br><span class="line">			newState.sleepFor = t.maxSlack</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">if</span> newState.sleepFor &gt; <span class="number">0</span> &#123;</span><br><span class="line">			newState.last = newState.last.Add(newState.sleepFor)</span><br><span class="line">		&#125;</span><br><span class="line">		taken = atomic.CompareAndSwapPointer(&amp;t.state, previousStatePointer, unsafe.Pointer(&amp;newState))</span><br><span class="line">	&#125;</span><br><span class="line">	t.clock.Sleep(newState.sleepFor)</span><br><span class="line">	<span class="keyword">return</span> newState.last</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>第二版本采用原子操作+for的自旋操作来替代lock操作，这样做的目的是减少协程锁竞争。 两个版本不管是用锁还是原子操作本质都是让请求排队，第一版本存在锁竞争，然后排队sleep，第二版本避免锁竞争，但是所有协程可能很快跳出for循环然后都会在sleep处sleep。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Technology/" rel="tag"># Technology</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/10/04/go/promethues%20golang%20%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/" rel="prev" title="Promethues Golang 客户端 源码解析">
+      <i class="fa fa-chevron-left"></i> Promethues Golang 客户端 源码解析
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/08/01/go/go-micro%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/" rel="next" title="Go-micro 框架解析">
+      Go-micro 框架解析 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BF%A1%E5%8F%B7%E9%87%8F%E9%99%90%E6%B5%81"><span class="nav-number">1.</span> <span class="nav-text">信号量限流</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95"><span class="nav-number"></span> <span class="nav-text">限流算法</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#uber-%E5%BC%80%E6%BA%90%E5%AE%9E%E7%8E%B0RateLimit-%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="nav-number">1.</span> <span class="nav-text">uber 开源实现RateLimit 源码解析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%BC%95%E5%85%A5%E6%96%B9%E5%BC%8F"><span class="nav-number">1.1.</span> <span class="nav-text">引入方式</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

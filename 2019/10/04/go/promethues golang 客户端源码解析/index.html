@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"jasonchen86899.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Promethues Golang 客户端 源码解析 监控利器 promethues，线上产品必备的监控组件。笔者此处不做过多的介绍，开始client端源码旅程。源码一共分为三个部分  Register Collector Push Gateway client">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Promethues Golang 客户端 源码解析">
+<meta property="og:url" content="https://jasonchen86899.github.io/2019/10/04/go/promethues%20golang%20%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="Promethues Golang 客户端 源码解析 监控利器 promethues，线上产品必备的监控组件。笔者此处不做过多的介绍，开始client端源码旅程。源码一共分为三个部分  Register Collector Push Gateway client">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-10-03T16:00:00.000Z">
+<meta property="article:modified_time" content="2021-01-02T12:49:48.000Z">
+<meta property="article:tag" content="Technology">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://jasonchen86899.github.io/2019/10/04/go/promethues%20golang%20%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'CN'
+  };
+</script>
+
+  <title>Promethues Golang 客户端 源码解析 | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="CN">
+    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2019/10/04/go/promethues%20golang%20%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Promethues Golang 客户端 源码解析
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2019-10-04 00:00:00" itemprop="dateCreated datePublished" datetime="2019-10-04T00:00:00+08:00">2019-10-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-01-02 20:49:48" itemprop="dateModified" datetime="2021-01-02T20:49:48+08:00">2021-01-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Golang/" itemprop="url" rel="index"><span itemprop="name">Golang</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Promethues Golang 客户端 源码解析</p>
+<p>监控利器 promethues，线上产品必备的监控组件。笔者此处不做过多的介绍，开始client端源码旅程。<br>源码一共分为三个部分</p>
+<ul>
+<li>Register</li>
+<li>Collector</li>
+<li>Push Gateway client<span id="more"></span></li>
+</ul>
+<h3 id="概念简介"><a href="#概念简介" class="headerlink" title="概念简介"></a>概念简介</h3><p>Desc：表示一个监控的指标，客户端代码基于它唯一标记一个采集指标<br>promethues.Metric: 这是一个interface 接口，定义一个指标需要实现两个方法：<br>    Desc() 和 Write(&amp;dto.Metric)</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Metric <span class="keyword">interface</span> &#123;</span><br><span class="line">	<span class="comment">// Desc returns the descriptor for the Metric. This method idempotently</span></span><br><span class="line">	<span class="comment">// returns the same descriptor throughout the lifetime of the</span></span><br><span class="line">	<span class="comment">// Metric. The returned descriptor is immutable by contract. A Metric</span></span><br><span class="line">	<span class="comment">// unable to describe itself must return an invalid descriptor (created</span></span><br><span class="line">	<span class="comment">// with NewInvalidDesc).</span></span><br><span class="line">	Desc() *Desc</span><br><span class="line">	<span class="comment">// Write encodes the Metric into a &quot;Metric&quot; Protocol Buffer data</span></span><br><span class="line">	<span class="comment">// transmission object.</span></span><br><span class="line">	<span class="comment">//</span></span><br><span class="line">	<span class="comment">// Metric implementations must observe concurrency safety as reads of</span></span><br><span class="line">	<span class="comment">// this metric may occur at any time, and any blocking occurs at the</span></span><br><span class="line">	<span class="comment">// expense of total performance of rendering all registered</span></span><br><span class="line">	<span class="comment">// metrics. Ideally, Metric implementations should support concurrent</span></span><br><span class="line">	<span class="comment">// readers.</span></span><br><span class="line">	<span class="comment">//</span></span><br><span class="line">	<span class="comment">// While populating dto.Metric, it is the responsibility of the</span></span><br><span class="line">	<span class="comment">// implementation to ensure validity of the Metric protobuf (like valid</span></span><br><span class="line">	<span class="comment">// UTF-8 strings or syntactically valid metric and label names). It is</span></span><br><span class="line">	<span class="comment">// recommended to sort labels lexicographically. Callers of Write should</span></span><br><span class="line">	<span class="comment">// still make sure of sorting if they depend on it.</span></span><br><span class="line">	Write(*dto.Metric) <span class="type">error</span></span><br><span class="line">	<span class="comment">// TODO(beorn7): The original rationale of passing in a pre-allocated</span></span><br><span class="line">	<span class="comment">// dto.Metric protobuf to save allocations has disappeared. The</span></span><br><span class="line">	<span class="comment">// signature of this method should be changed to &quot;Write() (*dto.Metric,</span></span><br><span class="line">	<span class="comment">// error)&quot;.</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>dto.Metric：定义在pb 文件中 表示一个传送给 promethues server 端的 采集到的指标值，可以理解为 Desc 的一个实例值<br>labelPairs：定义在pb文件中 在Metric 结构体内，表示一个label key-value 键值对 实例值</p>
+<h3 id="Collector-源码解析"><a href="#Collector-源码解析" class="headerlink" title="Collector 源码解析"></a>Collector 源码解析</h3><p>采集器 顾名思义 我们所关心的所需要监控的指标的采集器，比如 go_collector 这是采集go 环境指标的采集，采集 在 高并发场景下我们所关心的指标：goroutine 的数量，os thread 的数量，gc 时长。<br>源码剖析：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Collector的接口</span></span><br><span class="line"><span class="keyword">type</span> Collector <span class="keyword">interface</span> &#123;</span><br><span class="line">	Describe(<span class="keyword">chan</span>&lt;- *Desc)</span><br><span class="line">	Collect(<span class="keyword">chan</span>&lt;- Metric)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Describe(<span class="keyword">chan</span>&lt;- *Desc)</span><br></pre></td></tr></table></figure>
+<p>用来创建 Desc，一个采集器有很多 Desc 也就是一个采集器可以收集很多指标</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Collect(<span class="keyword">chan</span>&lt;- Metric)</span><br></pre></td></tr></table></figure>
+<p>用来收集指标值，这是采集指标的采集入口，由Register Gather 方法进行调用 后续在Register 源码讲解中会涉及</p>
+<p>收集方法的传参是一个只写channel，意思就是由采集器将采集到的数值写入 channel。<br>传入的值是Metric 的一个实例值，Metric类型有四种：counter， gauge，histogram，summary。</p>
+<p>从源码设计的角度开看 collector 接口的具体实现主要有 metricVec，它有四个主要的子结构体：<br>CounterVec，GaugeVec，HistogramVec，SummaryVec。从原作者的注释来看，其意思是带有promethues.Metric 的 collector。<br>从笔者对源码的理解程度来看，这样设计的原因：将Register接口对具有单一指标的collector的注册和对拥有多个指标的collector的注册统一到一起。<br>从业务角度来看，单一指标占大多数，也是经常使用的。多个指标collector却往往是单独提供的特殊collector 比如，go_collector ，这是上报go 运行环境指标的采集器，其内部有很多个采集指标，里面的逻辑则是包含特殊处理的value Metric(这也是一个Metric)</p>
+<h3 id="Register源码解析"><a href="#Register源码解析" class="headerlink" title="Register源码解析"></a>Register源码解析</h3><p>注册</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Registerer <span class="keyword">interface</span> &#123;</span><br><span class="line">	<span class="comment">// Register registers a new Collector to be included in metrics</span></span><br><span class="line">	<span class="comment">// collection. It returns an error if the descriptors provided by the</span></span><br><span class="line">	<span class="comment">// Collector are invalid or if they — in combination with descriptors of</span></span><br><span class="line">	<span class="comment">// already registered Collectors — do not fulfill the consistency and</span></span><br><span class="line">	<span class="comment">// uniqueness criteria described in the documentation of metric.Desc.</span></span><br><span class="line">	<span class="comment">//</span></span><br><span class="line">	<span class="comment">// If the provided Collector is equal to a Collector already registered</span></span><br><span class="line">	<span class="comment">// (which includes the case of re-registering the same Collector), the</span></span><br><span class="line">	<span class="comment">// returned error is an instance of AlreadyRegisteredError, which</span></span><br><span class="line">	<span class="comment">// contains the previously registered Collector.</span></span><br><span class="line">	<span class="comment">//</span></span><br><span class="line">	<span class="comment">// A Collector whose Describe method does not yield any Desc is treated</span></span><br><span class="line">	<span class="comment">// as unchecked. Registration will always succeed. No check for</span></span><br><span class="line">	<span class="comment">// re-registering (see previous paragraph) is performed. Thus, the</span></span><br><span class="line">	<span class="comment">// caller is responsible for not double-registering the same unchecked</span></span><br><span class="line">	<span class="comment">// Collector, and for providing a Collector that will not cause</span></span><br><span class="line">	<span class="comment">// inconsistent metrics on collection. (This would lead to scrape</span></span><br><span class="line">	<span class="comment">// errors.)</span></span><br><span class="line">	Register(Collector) <span class="type">error</span></span><br><span class="line">	<span class="comment">// MustRegister works like Register but registers any number of</span></span><br><span class="line">	<span class="comment">// Collectors and panics upon the first registration that causes an</span></span><br><span class="line">	<span class="comment">// error.</span></span><br><span class="line">	MustRegister(...Collector)</span><br><span class="line">	<span class="comment">// Unregister unregisters the Collector that equals the Collector passed</span></span><br><span class="line">	<span class="comment">// in as an argument.  (Two Collectors are considered equal if their</span></span><br><span class="line">	<span class="comment">// Describe method yields the same set of descriptors.) The function</span></span><br><span class="line">	<span class="comment">// returns whether a Collector was unregistered. Note that an unchecked</span></span><br><span class="line">	<span class="comment">// Collector cannot be unregistered (as its Describe method does not</span></span><br><span class="line">	<span class="comment">// yield any descriptor).</span></span><br><span class="line">	<span class="comment">//</span></span><br><span class="line">	<span class="comment">// Note that even after unregistering, it will not be possible to</span></span><br><span class="line">	<span class="comment">// register a new Collector that is inconsistent with the unregistered</span></span><br><span class="line">	<span class="comment">// Collector, e.g. a Collector collecting metrics with the same name but</span></span><br><span class="line">	<span class="comment">// a different help string. The rationale here is that the same registry</span></span><br><span class="line">	<span class="comment">// instance must only collect consistent metrics throughout its</span></span><br><span class="line">	<span class="comment">// lifetime.</span></span><br><span class="line">	Unregister(Collector) <span class="type">bool</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Register实现了Registerer的接口，接口里面的三个方法的主要作用很明显，下面详细讲解下细节，话不多说，开启代码详解</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Registry <span class="keyword">struct</span> &#123;</span><br><span class="line">	mtx                   sync.RWMutex</span><br><span class="line">	collectorsByID        <span class="keyword">map</span>[<span class="type">uint64</span>]Collector <span class="comment">// ID is a hash of the descIDs.</span></span><br><span class="line">	descIDs               <span class="keyword">map</span>[<span class="type">uint64</span>]<span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">	dimHashesByName       <span class="keyword">map</span>[<span class="type">string</span>]<span class="type">uint64</span></span><br><span class="line">	uncheckedCollectors   []Collector</span><br><span class="line">	pedanticChecksEnabled <span class="type">bool</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Register implements Registerer.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *Registry)</span></span> Register(c Collector) <span class="type">error</span> &#123;</span><br><span class="line">	<span class="keyword">var</span> (</span><br><span class="line">		descChan           = <span class="built_in">make</span>(<span class="keyword">chan</span> *Desc, capDescChan)</span><br><span class="line">		newDescIDs         = <span class="keyword">map</span>[<span class="type">uint64</span>]<span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">		newDimHashesByName = <span class="keyword">map</span>[<span class="type">string</span>]<span class="type">uint64</span>&#123;&#125;</span><br><span class="line">		collectorID        <span class="type">uint64</span> <span class="comment">// Just a sum of all desc IDs.</span></span><br><span class="line">		duplicateDescErr   <span class="type">error</span></span><br><span class="line">	)</span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="comment">// 调用采集器的 Describe进行collector 里面Desc的收集</span></span><br><span class="line">		c.Describe(descChan)</span><br><span class="line">		<span class="built_in">close</span>(descChan)</span><br><span class="line">	&#125;()</span><br><span class="line">	r.mtx.Lock()</span><br><span class="line">	<span class="keyword">defer</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="comment">// Drain channel in case of premature return to not leak a goroutine.</span></span><br><span class="line">		防止协程泄露，这里需要重点讲解下, 因为descChan的默认长度只有<span class="number">10</span>，所以当</span><br><span class="line">Collector的desc 比较多，下面从channel取数据的程序提前<span class="keyword">return</span>，那么 上面的goroutine将会阻塞，高并发的情况下会出现协程泄漏</span><br><span class="line">		<span class="keyword">for</span> <span class="keyword">range</span> descChan &#123;</span><br><span class="line">		&#125;</span><br><span class="line">		r.mtx.Unlock()</span><br><span class="line">	&#125;()</span><br><span class="line">	<span class="comment">// Conduct various tests...</span></span><br><span class="line">	<span class="keyword">for</span> desc := <span class="keyword">range</span> descChan &#123;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// Is the descriptor valid at all?</span></span><br><span class="line">		<span class="keyword">if</span> desc.err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;descriptor %s is invalid: %s&quot;</span>, desc, desc.err)</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// Is the descID unique?</span></span><br><span class="line">		<span class="comment">// (In other words: Is the fqName + constLabel combination unique?)</span></span><br><span class="line">		<span class="keyword">if</span> _, exists := r.descIDs[desc.id]; exists &#123;</span><br><span class="line">			duplicateDescErr = fmt.Errorf(<span class="string">&quot;descriptor %s already exists with the same fully-qualified name and const label values&quot;</span>, desc)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// If it is not a duplicate desc in this collector, add it to</span></span><br><span class="line">		<span class="comment">// the collectorID.  (We allow duplicate descs within the same</span></span><br><span class="line">		<span class="comment">// collector, but their existence must be a no-op.)</span></span><br><span class="line">		<span class="keyword">if</span> _, exists := newDescIDs[desc.id]; !exists &#123;</span><br><span class="line">			newDescIDs[desc.id] = <span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">			collectorID += desc.id</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// Are all the label names and the help string consistent with</span></span><br><span class="line">		<span class="comment">// previous descriptors of the same name?</span></span><br><span class="line">		<span class="comment">// First check existing descriptors...</span></span><br><span class="line">		<span class="keyword">if</span> dimHash, exists := r.dimHashesByName[desc.fqName]; exists &#123;</span><br><span class="line">			<span class="keyword">if</span> dimHash != desc.dimHash &#123;</span><br><span class="line">				<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;a previously registered descriptor with the same fully-qualified name as %s has different label names or a different help string&quot;</span>, desc)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">			<span class="comment">// ...then check the new descriptors already seen.</span></span><br><span class="line">			<span class="keyword">if</span> dimHash, exists := newDimHashesByName[desc.fqName]; exists &#123;</span><br><span class="line">				<span class="keyword">if</span> dimHash != desc.dimHash &#123;</span><br><span class="line">					<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;descriptors reported by collector have inconsistent label names or help strings for the same fully-qualified name, offender is %s&quot;</span>, desc)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				newDimHashesByName[desc.fqName] = desc.dimHash</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// A Collector yielding no Desc at all is considered unchecked.</span></span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(newDescIDs) == <span class="number">0</span> &#123;</span><br><span class="line">		r.uncheckedCollectors = <span class="built_in">append</span>(r.uncheckedCollectors, c)</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> existing, exists := r.collectorsByID[collectorID]; exists &#123;</span><br><span class="line">		<span class="keyword">return</span> AlreadyRegisteredError&#123;</span><br><span class="line">			ExistingCollector: existing,</span><br><span class="line">			NewCollector:      c,</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// If the collectorID is new, but at least one of the descs existed</span></span><br><span class="line">	<span class="comment">// before, we are in trouble.</span></span><br><span class="line">	<span class="keyword">if</span> duplicateDescErr != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> duplicateDescErr</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Only after all tests have passed, actually register.</span></span><br><span class="line">	r.collectorsByID[collectorID] = c</span><br><span class="line">	<span class="keyword">for</span> hash := <span class="keyword">range</span> newDescIDs &#123;</span><br><span class="line">		r.descIDs[hash] = <span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">for</span> name, dimHash := <span class="keyword">range</span> newDimHashesByName &#123;</span><br><span class="line">		r.dimHashesByName[name] = dimHash</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>由上述代码可以看出注册只是进行了Desc 指标的记录，那么如何进行指标值的采集与记录，如何上报。笔者带着问题进行了相关源码的阅读</p>
+<p>采集</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Gatherer is the interface for the part of a registry in charge of gathering</span></span><br><span class="line"><span class="comment">// the collected metrics into a number of MetricFamilies. The Gatherer interface</span></span><br><span class="line"><span class="comment">// comes with the same general implication as described for the Registerer</span></span><br><span class="line"><span class="comment">// interface.</span></span><br><span class="line"><span class="keyword">type</span> Gatherer <span class="keyword">interface</span> &#123;</span><br><span class="line">	<span class="comment">// Gather calls the Collect method of the registered Collectors and then</span></span><br><span class="line">	<span class="comment">// gathers the collected metrics into a lexicographically sorted slice</span></span><br><span class="line">	<span class="comment">// of uniquely named MetricFamily protobufs. Gather ensures that the</span></span><br><span class="line">	<span class="comment">// returned slice is valid and self-consistent so that it can be used</span></span><br><span class="line">	<span class="comment">// for valid exposition. As an exception to the strict consistency</span></span><br><span class="line">	<span class="comment">// requirements described for metric.Desc, Gather will tolerate</span></span><br><span class="line">	<span class="comment">// different sets of label names for metrics of the same metric family.</span></span><br><span class="line">	<span class="comment">//</span></span><br><span class="line">	<span class="comment">// Even if an error occurs, Gather attempts to gather as many metrics as</span></span><br><span class="line">	<span class="comment">// possible. Hence, if a non-nil error is returned, the returned</span></span><br><span class="line">	<span class="comment">// MetricFamily slice could be nil (in case of a fatal error that</span></span><br><span class="line">	<span class="comment">// prevented any meaningful metric collection) or contain a number of</span></span><br><span class="line">	<span class="comment">// MetricFamily protobufs, some of which might be incomplete, and some</span></span><br><span class="line">	<span class="comment">// might be missing altogether. The returned error (which might be a</span></span><br><span class="line">	<span class="comment">// MultiError) explains the details. Note that this is mostly useful for</span></span><br><span class="line">	<span class="comment">// debugging purposes. If the gathered protobufs are to be used for</span></span><br><span class="line">	<span class="comment">// exposition in actual monitoring, it is almost always better to not</span></span><br><span class="line">	<span class="comment">// expose an incomplete result and instead disregard the returned</span></span><br><span class="line">	<span class="comment">// MetricFamily protobufs in case the returned error is non-nil.</span></span><br><span class="line">	Gather() ([]*dto.MetricFamily, <span class="type">error</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Gather"><a href="#Gather" class="headerlink" title="Gather"></a>Gather</h3><p>Register 不仅实现了Registerer接口还实现了Gatherer接口，这个接口主要是用来采集具体的指标值。具体看下里面的实现</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(r *Registry)</span></span> Gather() ([]*dto.MetricFamily, <span class="type">error</span>) &#123;</span><br><span class="line">	<span class="keyword">var</span> (</span><br><span class="line">		checkedMetricChan   = <span class="built_in">make</span>(<span class="keyword">chan</span> Metric, capMetricChan)</span><br><span class="line">		uncheckedMetricChan = <span class="built_in">make</span>(<span class="keyword">chan</span> Metric, capMetricChan)</span><br><span class="line">		metricHashes        = <span class="keyword">map</span>[<span class="type">uint64</span>]<span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">		wg                  sync.WaitGroup</span><br><span class="line">		errs                MultiError          <span class="comment">// The collected errors to return in the end.</span></span><br><span class="line">		registeredDescIDs   <span class="keyword">map</span>[<span class="type">uint64</span>]<span class="keyword">struct</span>&#123;&#125; <span class="comment">// Only used for pedantic checks</span></span><br><span class="line">	)</span><br><span class="line"></span><br><span class="line">	r.mtx.RLock()</span><br><span class="line">	goroutineBudget := <span class="built_in">len</span>(r.collectorsByID) + <span class="built_in">len</span>(r.uncheckedCollectors)</span><br><span class="line">处理指标Metric后存放结果的切片</span><br><span class="line">metricFamiliesByName := <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="type">string</span>]*dto.MetricFamily, <span class="built_in">len</span>(r.dimHashesByName))</span><br><span class="line">	checkedCollectors := <span class="built_in">make</span>(<span class="keyword">chan</span> Collector, <span class="built_in">len</span>(r.collectorsByID))</span><br><span class="line">	uncheckedCollectors := <span class="built_in">make</span>(<span class="keyword">chan</span> Collector, <span class="built_in">len</span>(r.uncheckedCollectors))</span><br><span class="line">	<span class="keyword">for</span> _, collector := <span class="keyword">range</span> r.collectorsByID &#123;</span><br><span class="line">		checkedCollectors &lt;- collector</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">for</span> _, collector := <span class="keyword">range</span> r.uncheckedCollectors &#123;</span><br><span class="line">		uncheckedCollectors &lt;- collector</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// In case pedantic checks are enabled, we have to copy the map before</span></span><br><span class="line">	<span class="comment">// giving up the RLock.</span></span><br><span class="line">	<span class="keyword">if</span> r.pedanticChecksEnabled &#123;</span><br><span class="line">		registeredDescIDs = <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="type">uint64</span>]<span class="keyword">struct</span>&#123;&#125;, <span class="built_in">len</span>(r.descIDs))</span><br><span class="line">		<span class="keyword">for</span> id := <span class="keyword">range</span> r.descIDs &#123;</span><br><span class="line">			registeredDescIDs[id] = <span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	r.mtx.RUnlock()</span><br><span class="line"></span><br><span class="line">	wg.Add(goroutineBudget)</span><br><span class="line"></span><br><span class="line">	collectWorker := <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">for</span> &#123;</span><br><span class="line">			<span class="keyword">select</span> &#123;</span><br><span class="line">			<span class="keyword">case</span> collector := &lt;-checkedCollectors:</span><br><span class="line">调用clollector的Clollect方法</span><br><span class="line">				collector.Collect(checkedMetricChan)</span><br><span class="line">			<span class="keyword">case</span> collector := &lt;-uncheckedCollectors:</span><br><span class="line">				collector.Collect(uncheckedMetricChan)</span><br><span class="line">			<span class="keyword">default</span>:</span><br><span class="line">				<span class="keyword">return</span></span><br><span class="line">			&#125;</span><br><span class="line">			wg.Done()</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Start the first worker now to make sure at least one is running.</span></span><br><span class="line">	<span class="keyword">go</span> collectWorker()</span><br><span class="line">	goroutineBudget--</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Close checkedMetricChan and uncheckedMetricChan once all collectors</span></span><br><span class="line">	<span class="comment">// are collected.</span></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		wg.Wait()</span><br><span class="line">		<span class="built_in">close</span>(checkedMetricChan)</span><br><span class="line">		<span class="built_in">close</span>(uncheckedMetricChan)</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Drain checkedMetricChan and uncheckedMetricChan in case of premature return.</span></span><br><span class="line">	<span class="keyword">defer</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">if</span> checkedMetricChan != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">for</span> <span class="keyword">range</span> checkedMetricChan &#123;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">if</span> uncheckedMetricChan != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">for</span> <span class="keyword">range</span> uncheckedMetricChan &#123;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Copy the channel references so we can nil them out later to remove</span></span><br><span class="line">	<span class="comment">// them from the select statements below.</span></span><br><span class="line">针对收集到的指标值进行处理，处理过程：调用processMetric函数将promethues.Metric 转换放进 metricFamiliesByName 切片中</span><br><span class="line">	cmc := checkedMetricChan</span><br><span class="line">	umc := uncheckedMetricChan</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> metric, ok := &lt;-cmc:</span><br><span class="line">			<span class="keyword">if</span> !ok &#123;</span><br><span class="line">				cmc = <span class="literal">nil</span></span><br><span class="line">				<span class="keyword">break</span></span><br><span class="line">			&#125;</span><br><span class="line">			errs.Append(processMetric(</span><br><span class="line">				metric, metricFamiliesByName,</span><br><span class="line">				metricHashes,</span><br><span class="line">				registeredDescIDs,</span><br><span class="line">			))</span><br><span class="line">		<span class="keyword">case</span> metric, ok := &lt;-umc:</span><br><span class="line">			<span class="keyword">if</span> !ok &#123;</span><br><span class="line">				umc = <span class="literal">nil</span></span><br><span class="line">				<span class="keyword">break</span></span><br><span class="line">			&#125;</span><br><span class="line">			errs.Append(processMetric(</span><br><span class="line">				metric, metricFamiliesByName,</span><br><span class="line">				metricHashes,</span><br><span class="line">				<span class="literal">nil</span>,</span><br><span class="line">			))</span><br><span class="line">		<span class="keyword">default</span>:</span><br><span class="line">			<span class="keyword">if</span> goroutineBudget &lt;= <span class="number">0</span> || <span class="built_in">len</span>(checkedCollectors)+<span class="built_in">len</span>(uncheckedCollectors) == <span class="number">0</span> &#123;</span><br><span class="line">				<span class="comment">// All collectors are already being worked on or</span></span><br><span class="line">				<span class="comment">// we have already as many goroutines started as</span></span><br><span class="line">				<span class="comment">// there are collectors. Do the same as above,</span></span><br><span class="line">				<span class="comment">// just without the default.</span></span><br><span class="line">				<span class="keyword">select</span> &#123;</span><br><span class="line">				<span class="keyword">case</span> metric, ok := &lt;-cmc:</span><br><span class="line">					<span class="keyword">if</span> !ok &#123;</span><br><span class="line">						cmc = <span class="literal">nil</span></span><br><span class="line">						<span class="keyword">break</span></span><br><span class="line">					&#125;</span><br><span class="line">					errs.Append(processMetric(</span><br><span class="line">						metric, metricFamiliesByName,</span><br><span class="line">						metricHashes,</span><br><span class="line">						registeredDescIDs,</span><br><span class="line">					))</span><br><span class="line">				<span class="keyword">case</span> metric, ok := &lt;-umc:</span><br><span class="line">					<span class="keyword">if</span> !ok &#123;</span><br><span class="line">						umc = <span class="literal">nil</span></span><br><span class="line">						<span class="keyword">break</span></span><br><span class="line">					&#125;</span><br><span class="line">					errs.Append(processMetric(</span><br><span class="line">						metric, metricFamiliesByName,</span><br><span class="line">						metricHashes,</span><br><span class="line">						<span class="literal">nil</span>,</span><br><span class="line">					))</span><br><span class="line">				&#125;</span><br><span class="line">				<span class="keyword">break</span></span><br><span class="line">			&#125;</span><br><span class="line">			<span class="comment">// Start more workers.</span></span><br><span class="line">			<span class="keyword">go</span> collectWorker()</span><br><span class="line">			goroutineBudget--</span><br><span class="line">			runtime.Gosched()</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// Once both checkedMetricChan and uncheckdMetricChan are closed</span></span><br><span class="line">		<span class="comment">// and drained, the contraption above will nil out cmc and umc,</span></span><br><span class="line">		<span class="comment">// and then we can leave the collect loop here.</span></span><br><span class="line">		<span class="keyword">if</span> cmc == <span class="literal">nil</span> &amp;&amp; umc == <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">break</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> internal.NormalizeMetricFamilies(metricFamiliesByName), errs.MaybeUnwrap()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里涉及到clollector的Collect 方法 和 如何 细节处理 Metric的<br>processMetric 方法，接下里笔者用两个小章节深入分析这两个方法</p>
+<h4 id="Collect"><a href="#Collect" class="headerlink" title="Collect"></a>Collect</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Collect implements Collector.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(m *metricMap)</span></span> Collect(ch <span class="keyword">chan</span>&lt;- Metric) &#123;</span><br><span class="line">	m.mtx.RLock()</span><br><span class="line">	<span class="keyword">defer</span> m.mtx.RUnlock()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> _, metrics := <span class="keyword">range</span> m.metrics &#123;</span><br><span class="line">		<span class="keyword">for</span> _, metric := <span class="keyword">range</span> metrics &#123;</span><br><span class="line">将指标值放入ch channel</span><br><span class="line">			ch &lt;- metric.metric</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可能会很困惑这里的metricMap。metricMap是metricVec的子结构体，所以这个方法也是四个指标Vec结构体的Collect方法。</p>
+<p>WithLabelValues(lvs …string) 或者 With(labels Labels)<br>可以看到是metricMap结构体内部存在metrics数组切片。这个数组切片里的值的add 其实是通过 Vec的 WithLabelValues(lvs …string) 或者 With(labels Labels) 方法进行，在Vec 四个指标结构体里面的 都具有相同的方法，其本质是获取metricMap里面 metrics 然后将里面的值进行相应的操作，比如 counter 的 Add Inc等方法，gauge 的 Set 方法，histogram 和 summary 的 Observe 方法等<br>四个指标Vec 的 WithLabelValues(lvs …string) 或者 With(labels Labels) 方法内部：<br>获取promethues.Metric指标，如果获取不到就创建一个metric<br>再根据前面的metric 进行相应的操作，前面有叙述，四个指标的操作</p>
+<h4 id="WithLabelValues："><a href="#WithLabelValues：" class="headerlink" title="WithLabelValues："></a>WithLabelValues：</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(m *metricVec)</span></span> getMetricWithLabelValues(lvs ...<span class="type">string</span>) (Metric, <span class="type">error</span>) &#123;</span><br><span class="line">	h, err := m.hashLabelValues(lvs)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> m.metricMap.getOrCreateMetricWithLabelValues(h, lvs, m.curry), <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="With："><a href="#With：" class="headerlink" title="With："></a>With：</h4><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(m *metricVec)</span></span> getMetricWith(labels Labels) (Metric, <span class="type">error</span>) &#123;</span><br><span class="line">	h, err := m.hashLabels(labels)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> m.metricMap.getOrCreateMetricWithLabels(h, labels, m.curry), <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上述是深入源码后里 metricVec和metricMap的内部方法，具体操作是根据计算出得 hash值找到metric，也就是 metrics[h] 如果没有就进行创建</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(m *metricMap)</span></span> getOrCreateMetricWithLabelValues(</span><br><span class="line">	hash <span class="type">uint64</span>, lvs []<span class="type">string</span>, curry []curriedLabelValue,</span><br><span class="line">) Metric &#123;</span><br><span class="line">先用读锁get</span><br><span class="line">	m.mtx.RLock()</span><br><span class="line">	metric, ok := m.getMetricWithHashAndLabelValues(hash, lvs, curry)</span><br><span class="line">	m.mtx.RUnlock()</span><br><span class="line">	<span class="keyword">if</span> ok &#123;</span><br><span class="line">		<span class="keyword">return</span> metric</span><br><span class="line">	&#125;</span><br><span class="line">如果需要create 用写锁，也是先get 然后再create 保证协程安全</span><br><span class="line">	m.mtx.Lock()</span><br><span class="line">	<span class="keyword">defer</span> m.mtx.Unlock()</span><br><span class="line">	metric, ok = m.getMetricWithHashAndLabelValues(hash, lvs, curry)</span><br><span class="line">	<span class="keyword">if</span> !ok &#123;</span><br><span class="line">		inlinedLVs := inlineLabelValues(lvs, curry)</span><br><span class="line">新建一个metric，这里newMetric是个方法，这个方法由在创建四个指标时传入</span><br><span class="line">比如 counter：</span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewCounterVec</span><span class="params">(opts CounterOpts, labelNames []<span class="type">string</span>)</span></span> *CounterVec &#123;</span><br><span class="line">	desc := NewDesc(</span><br><span class="line">		BuildFQName(opts.Namespace, opts.Subsystem, opts.Name),</span><br><span class="line">		opts.Help,</span><br><span class="line">		labelNames,</span><br><span class="line">		opts.ConstLabels,</span><br><span class="line">	)</span><br><span class="line">	<span class="keyword">return</span> &amp;CounterVec&#123;</span><br><span class="line">创建新的MetricVec，创建的时候传入匿名函数 <span class="function"><span class="keyword">func</span><span class="params">(lvs ...<span class="type">string</span>)</span></span> Metric</span><br><span class="line">		metricVec: newMetricVec(desc, <span class="function"><span class="keyword">func</span><span class="params">(lvs ...<span class="type">string</span>)</span></span> Metric &#123;</span><br><span class="line">			<span class="keyword">if</span> <span class="built_in">len</span>(lvs) != <span class="built_in">len</span>(desc.variableLabels) &#123;</span><br><span class="line">				<span class="built_in">panic</span>(makeInconsistentCardinalityError(desc.fqName, desc.variableLabels, lvs))</span><br><span class="line">			&#125;</span><br><span class="line">创建counter 并且返回</span><br><span class="line">			result := &amp;counter&#123;desc: desc, labelPairs: makeLabelPairs(desc, lvs)&#125;</span><br><span class="line">			result.init(result) <span class="comment">// Init self-collection.</span></span><br><span class="line">			<span class="keyword">return</span> result</span><br><span class="line">		&#125;),</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">		metric = m.newMetric(inlinedLVs...)</span><br><span class="line">metricWithLabelValues是内部的一个结构体，其实就是metrics切片里面元素的本质</span><br><span class="line">		m.metrics[hash] = <span class="built_in">append</span>(m.metrics[hash], metricWithLabelValues&#123;values: inlinedLVs, metric: metric&#125;)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> metric</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>返回metric后就可以进行相应的具体操作。<br>根据笔者的源码解读和思考，指标的变化其实本质就是Metric的手动变化，笔者之所以叫做手动是因为这些变化操作都需要业务方自己去调用。</p>
+<h3 id="Push-源码解析"><a href="#Push-源码解析" class="headerlink" title="Push 源码解析"></a>Push 源码解析</h3><p>API接口</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *Pusher)</span></span> Push() <span class="type">error</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> p.push(<span class="string">&quot;PUT&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>add 顾名思义就是增加，业务场景基本用的是Add</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *Pusher)</span></span> Add() <span class="type">error</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> p.push(<span class="string">&quot;POST&quot;</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>push：删除原有的所有指标并推送新的指标，对应put方法</p>
+<p>pushadd：更新已有的所有指标，对应post方法</p>
+<p>delete：删除指标，对应delete方法</p>
+<p>深入解析push方法</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *Pusher)</span></span> push(method <span class="type">string</span>) <span class="type">error</span> &#123;</span><br><span class="line">	<span class="keyword">if</span> p.<span class="type">error</span> != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> p.<span class="type">error</span></span><br><span class="line">	&#125;</span><br><span class="line">	urlComponents := []<span class="type">string</span>&#123;url.QueryEscape(p.job)&#125;</span><br><span class="line">	<span class="keyword">for</span> ln, lv := <span class="keyword">range</span> p.grouping &#123;</span><br><span class="line">		urlComponents = <span class="built_in">append</span>(urlComponents, ln, lv)</span><br><span class="line">	&#125;</span><br><span class="line">	pushURL := fmt.Sprintf(<span class="string">&quot;%s/metrics/job/%s&quot;</span>, p.url, strings.Join(urlComponents, <span class="string">&quot;/&quot;</span>))</span><br><span class="line">这里是调用gathers的Gather方法，内部遍历每个gather的Gather方法，Gather方法的讲解在上文中</span><br><span class="line">	mfs, err := p.gatherers.Gather()</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	buf := &amp;bytes.Buffer&#123;&#125;</span><br><span class="line">	enc := expfmt.NewEncoder(buf, p.expfmt)</span><br><span class="line">	<span class="comment">// Check for pre-existing grouping labels:</span></span><br><span class="line">	<span class="keyword">for</span> _, mf := <span class="keyword">range</span> mfs &#123;</span><br><span class="line">		<span class="keyword">for</span> _, m := <span class="keyword">range</span> mf.GetMetric() &#123;</span><br><span class="line">			<span class="keyword">for</span> _, l := <span class="keyword">range</span> m.GetLabel() &#123;</span><br><span class="line">				<span class="keyword">if</span> l.GetName() == <span class="string">&quot;job&quot;</span> &#123;</span><br><span class="line">					<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;pushed metric %s (%s) already contains a job label&quot;</span>, mf.GetName(), m)</span><br><span class="line">				&#125;</span><br><span class="line">				<span class="keyword">if</span> _, ok := p.grouping[l.GetName()]; ok &#123;</span><br><span class="line">					<span class="keyword">return</span> fmt.Errorf(</span><br><span class="line">						<span class="string">&quot;pushed metric %s (%s) already contains grouping label %s&quot;</span>,</span><br><span class="line">						mf.GetName(), m, l.GetName(),</span><br><span class="line">					)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		enc.Encode(mf)</span><br><span class="line">	&#125;</span><br><span class="line">这里发送http请求</span><br><span class="line">	req, err := http.NewRequest(method, pushURL, buf)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> p.useBasicAuth &#123;</span><br><span class="line">		req.SetBasicAuth(p.username, p.password)</span><br><span class="line">	&#125;</span><br><span class="line">	req.Header.Set(contentTypeHeader, <span class="type">string</span>(p.expfmt))</span><br><span class="line">	resp, err := p.client.Do(req)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">defer</span> resp.Body.Close()</span><br><span class="line">	<span class="keyword">if</span> resp.StatusCode != <span class="number">202</span> &#123;</span><br><span class="line">		body, _ := ioutil.ReadAll(resp.Body) <span class="comment">// Ignore any further error as this is for an error message only.</span></span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;unexpected status code %d while pushing to %s: %s&quot;</span>, resp.StatusCode, pushURL, body)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Summary和Histogram-算法分析"><a href="#Summary和Histogram-算法分析" class="headerlink" title="Summary和Histogram 算法分析"></a>Summary和Histogram 算法分析</h3><p>这是笔者附加的一个章节，这里涉及一个基于流的计算有偏差的分位数值的算法，这个算法的论文地址：<br><a target="_blank" rel="noopener" href="http://www.cs.rutgers.edu/~muthu/bquant.pdf">http://www.cs.rutgers.edu/~muthu/bquant.pdf</a></p>
+<p>首先介绍下什么是分位数，分位数是统计学看里面概念，在统计学中经常被提及，下面笔者通过一个例子来简单解释一下。</p>
+<p>假设有一千名学生参加了某次考试，<br>学生A得了75分，排名603，603/1000＝60.3%<br>学生B得了94分，排名28，28/1000=2.8%<br>此时，A大约在60.3%的位置上，而B大约在2.8%的位置上。即在60.3%的位置上约75分, 2.8%的位置上约94分。</p>
+<p>对应四分位数的就很好解释了，分别在25%, 50%, 75%位置上的数。假设考生甲乙丙丁考试成绩分别为80,71,61，对应的名次分别为250,500,750名，那么对应的四分位数分别就为80,71,61。</p>
+<p>beorn7/perks/quantile 代码库基于上述论文进行了工程实现，具体算法笔者大致浏览了下，主要分为3个主要函数：</p>
+<ul>
+<li>merge</li>
+<li>compress</li>
+<li>query</li>
+</ul>
+<p>其中merge和compress一起使用，先merge 样本再compress样本，query主要用来查询具体分位数值，里面实现的逻辑需要结合论文去理解，笔者暂时没有研究论文提出的算法以及理论依据。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Technology/" rel="tag"># Technology</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/03/01/%E5%9F%BA%E7%A1%80/tcp%20%E5%8E%9F%E7%90%86%E6%B5%85%E8%B0%88%E4%B8%8EIO%20%E6%A8%A1%E5%9E%8B%E6%B5%85%E8%B0%88/" rel="prev" title="TCP协议详解">
+      <i class="fa fa-chevron-left"></i> TCP协议详解
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/05/01/go/%E9%99%90%E6%B5%81%E5%99%A8-golang/" rel="next" title="限流器">
+      限流器 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A6%82%E5%BF%B5%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">概念简介</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Collector-%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="nav-number">2.</span> <span class="nav-text">Collector 源码解析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Register%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="nav-number">3.</span> <span class="nav-text">Register源码解析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Gather"><span class="nav-number">4.</span> <span class="nav-text">Gather</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Collect"><span class="nav-number">4.1.</span> <span class="nav-text">Collect</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#WithLabelValues%EF%BC%9A"><span class="nav-number">4.2.</span> <span class="nav-text">WithLabelValues：</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#With%EF%BC%9A"><span class="nav-number">4.3.</span> <span class="nav-text">With：</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Push-%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="nav-number">5.</span> <span class="nav-text">Push 源码解析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Summary%E5%92%8CHistogram-%E7%AE%97%E6%B3%95%E5%88%86%E6%9E%90"><span class="nav-number">6.</span> <span class="nav-text">Summary和Histogram 算法分析</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

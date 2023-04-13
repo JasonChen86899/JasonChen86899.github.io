@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"jasonchen86899.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Netty是如今互联网最流行的java通讯库，在众多优秀组件 dubbo,grpc-java,jetty,RocketMQ中都使用了netty作为其通讯组件。在netty的使用中，最常见的就是ByteBuf类，这个类最常见是由于其是字节数据的容器，白话一点就是存放字节数据的数组。因为所有的网络通信最终都是基于底层的字节流传输，所以需要一个方便、易用的数据接口进行字节流的基本操作，正好ByteBuf">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Netty源码解析-ByteBuf篇">
+<meta property="og:url" content="https://jasonchen86899.github.io/2019/02/01/java/ByteBuff%E4%BB%A5%E5%8F%8A%E5%88%86%E9%85%8D%E5%99%A8%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="Netty是如今互联网最流行的java通讯库，在众多优秀组件 dubbo,grpc-java,jetty,RocketMQ中都使用了netty作为其通讯组件。在netty的使用中，最常见的就是ByteBuf类，这个类最常见是由于其是字节数据的容器，白话一点就是存放字节数据的数组。因为所有的网络通信最终都是基于底层的字节流传输，所以需要一个方便、易用的数据接口进行字节流的基本操作，正好ByteBuf">
+<meta property="og:locale">
+<meta property="og:image" content="http://chblog.me/images/Recycler.Stack%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E5%9B%BE.PNG">
+<meta property="article:published_time" content="2019-01-31T16:00:00.000Z">
+<meta property="article:modified_time" content="2019-03-10T15:46:34.000Z">
+<meta property="article:tag" content="Technology">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://chblog.me/images/Recycler.Stack%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E5%9B%BE.PNG">
+
+<link rel="canonical" href="https://jasonchen86899.github.io/2019/02/01/java/ByteBuff%E4%BB%A5%E5%8F%8A%E5%88%86%E9%85%8D%E5%99%A8%E5%8E%9F%E7%90%86/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'CN'
+  };
+</script>
+
+  <title>Netty源码解析-ByteBuf篇 | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="CN">
+    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2019/02/01/java/ByteBuff%E4%BB%A5%E5%8F%8A%E5%88%86%E9%85%8D%E5%99%A8%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Netty源码解析-ByteBuf篇
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2019-02-01 00:00:00" itemprop="dateCreated datePublished" datetime="2019-02-01T00:00:00+08:00">2019-02-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2019-03-10 23:46:34" itemprop="dateModified" datetime="2019-03-10T23:46:34+08:00">2019-03-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Netty/" itemprop="url" rel="index"><span itemprop="name">Netty</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Netty是如今互联网最流行的java通讯库，在众多优秀组件 dubbo,grpc-java,jetty,RocketMQ中都使用了netty作为其通讯组件。<br>在netty的使用中，最常见的就是ByteBuf类，这个类最常见是由于其是<strong>字节数据的容器</strong>，白话一点就是存放字节数据的数组。<br>因为所有的网络通信最终都是基于底层的字节流传输，所以需要一个方便、易用的数据接口进行字节流的基本操作，正好ByteBuf提供了<br>基础的操作。</p>
+<span id="more"></span>
+<h3 id="ByteBuf-三种类型"><a href="#ByteBuf-三种类型" class="headerlink" title="ByteBuf 三种类型"></a>ByteBuf 三种类型</h3><ol>
+<li>堆缓充区<br>此类型ByteBuf将数据存在JVM的堆空间。以非池化的堆内存为例 UnpooledHeapByteBuf，阅读源码其中使用 byte[] array作为数据存储，很显然数据在堆内存，所以在其作为IO输出到socket或者file时，显然效率是不如堆外内存的，这里面的知识详情见附录，涉及经常被提及的零拷贝的概念。</li>
+<li>直接缓冲区<br>此类型ByteBuf将数据存在JVM的堆外内存，注意：这里的堆外内存依然是用户态的内存不是内核态的内存映射。为什么要使用堆外内存，这里面的知识也是涉及附录知识点。以非池化的直接缓冲区为例 UnpooledDirectByteBuf，阅读源码其使用 ByteBuffer的DirectByteBuffer直接内存作为数据存储，采用装饰者模式进行装饰性封装。</li>
+<li>复合缓冲区<br>此类型ByteBuf是用于<strong>避免重复内存拷贝</strong>而设计的，CompositeByteBuf类来处理复合缓冲区，但其只是一个视图，何为视图，白话一点就是其是一个装饰者，封装了底层实现用来让api调用者用起来以为是一个ByteBuf缓冲区而不是同时操作多个缓冲区。避免重复内存以及之间的拷贝也是涉及附录知识点。复合缓冲区就像一个组件列表，组件就是Bytebuf，我们可以动态的往其中加入和删除Bytebuf</li>
+</ol>
+<h3 id="ByteBuf-归属"><a href="#ByteBuf-归属" class="headerlink" title="ByteBuf 归属"></a>ByteBuf 归属</h3><ol>
+<li>非池化<br>非池化根据类型分为堆内存和非堆内存，堆内存是jvm管理之下的内存，非堆内存也叫本地内存，在jvm管理之外，也就是说不在gc管理之下，那么需要人工释放（java程序员习惯了不管内存，这里需要回归内存基本的操作）。非池化其实本质上就是需要时就去new一个，既然ByteBuf有堆和非堆，那么很显然Unpooled涉及UnpooledHeapByteBuf和UnpooledDirectByteBuf，目前源码中有几个为了强化性能而编写的拓展类：<br>UnpooledUnsafeDirectByteBuf和UnpooledUnsafeNoCleanerDirectByteBuf，内部使用了Unsafe进行高性能的get/set操作，为何高性能这里涉及Unsafe操作本地方法，NoCleaner涉及操作直接内存（非堆）时使用Unsafe本地方法创建和释放DirectByteBuffer不使用JDK内部实现的DirectByteBuffer创建和释放，因为JDK内部的DirectByteBuffer内部实现了Cleaner机制来释放内存，所以这里直接操作内存叫NoCleaner，这样做有两个好处：1.屏蔽了不同版本JDK的实现差异，但违背了跨平台特性。2.高性能直接操作内存，适配高并发场景。<br>那么此处以UnpooledUnCleanerDirectByteBuf和PlatformDependent为例分析下高性能部分的源码：<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// UnpooledUnCleanerDirectByteBuf 内部源码</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"> <span class="keyword">protected</span> ByteBuffer <span class="title function_">allocateDirect</span><span class="params">(<span class="type">int</span> initialCapacity)</span> &#123;</span><br><span class="line">     <span class="keyword">return</span> PlatformDependent.allocateDirectNoCleaner(initialCapacity);</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"> ByteBuffer <span class="title function_">reallocateDirect</span><span class="params">(ByteBuffer oldBuffer, <span class="type">int</span> initialCapacity)</span> &#123;</span><br><span class="line">     <span class="keyword">return</span> PlatformDependent.reallocateDirectNoCleaner(oldBuffer, initialCapacity);</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"> <span class="meta">@Override</span></span><br><span class="line"> <span class="keyword">protected</span> <span class="keyword">void</span> <span class="title function_">freeDirect</span><span class="params">(ByteBuffer buffer)</span> &#123;</span><br><span class="line">     PlatformDependent.freeDirectNoCleaner(buffer);</span><br><span class="line"> &#125;</span><br><span class="line"> <span class="comment">// PlatformDependent 内部源码</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> ByteBuffer <span class="title function_">allocateDirectNoCleaner</span><span class="params">(<span class="type">int</span> capacity)</span> &#123;</span><br><span class="line">    <span class="keyword">assert</span> USE_DIRECT_BUFFER_NO_CLEANER;</span><br><span class="line"></span><br><span class="line">    incrementMemoryCounter(capacity);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// PlatformDependent0内部采用Unsafe和反射直接创建DirectBuffer(address, capacity)</span></span><br><span class="line">        <span class="keyword">return</span> PlatformDependent0.allocateDirectNoCleaner(capacity);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable e) &#123;</span><br><span class="line">        decrementMemoryCounter(capacity);</span><br><span class="line">        throwException(e);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> ByteBuffer <span class="title function_">reallocateDirectNoCleaner</span><span class="params">(ByteBuffer buffer, <span class="type">int</span> capacity)</span> &#123;</span><br><span class="line">    <span class="keyword">assert</span> USE_DIRECT_BUFFER_NO_CLEANER;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> <span class="variable">len</span> <span class="operator">=</span> capacity - buffer.capacity();</span><br><span class="line">    incrementMemoryCounter(len);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// PlatformDependent0内部采用Unsafe和反射重新创建DirectBuffer(address, capacity)</span></span><br><span class="line">        <span class="keyword">return</span> PlatformDependent0.reallocateDirectNoCleaner(buffer, capacity);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable e) &#123;</span><br><span class="line">        decrementMemoryCounter(len);</span><br><span class="line">        throwException(e);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">freeDirectNoCleaner</span><span class="params">(ByteBuffer buffer)</span> &#123;</span><br><span class="line">    <span class="keyword">assert</span> USE_DIRECT_BUFFER_NO_CLEANER;</span><br><span class="line"></span><br><span class="line">    <span class="type">int</span> <span class="variable">capacity</span> <span class="operator">=</span> buffer.capacity();</span><br><span class="line">    <span class="comment">// PlatformDependent0内部采用Unsafe直接释放address</span></span><br><span class="line">    PlatformDependent0.freeMemory(PlatformDependent0.directBufferAddress(buffer));</span><br><span class="line">    decrementMemoryCounter(capacity);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>池化<br>所谓池化就是一个众多ByteBuf的重复利用缓存区，既然是重复利用，那么就会涉及回收和获取：<strong>release</strong> and <strong>get</strong>。<br>那么是如何进行缓存和这些一系列操作的呢？进行源码阅读<strong>Recycler类</strong>是核心类实现，这里涉及的知识点比较多首先看下数据结构图：<br><img src="http://chblog.me/images/Recycler.Stack%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E5%9B%BE.PNG" alt="Recycle.Stack数据结构图"><br>如果阅读过Recycle类源码可能感觉有种醍醐灌顶的感觉，但是如果不熟悉Recycle类源码可能就会感觉不知所云。读懂数据结构其实就是读懂算法和相关设计原理，这是作为工程类程序员必备的技能之一。接下来我们重点分析下源码细节：<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    轻量级的对象池 通过 stack存储 而且 stack是thread-local性质的，也就是说每个线程单独调用属于自己的Stack，操作自己的 stack 进行 pop 和 push进行回收和获取</span></span><br><span class="line"><span class="comment"> * Light-weight object pool based on a thread-local stack.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;T&gt; the type of the pooled object</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="keyword">class</span> <span class="title class_">Recycler</span>&lt;T&gt; &#123;</span><br><span class="line">  <span class="comment">// FastThreadLocal变量，里面存储Stack变量，FastThreadLocal类功能类似于ThreadLocal，里面封装了ThreadLocal</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> FastThreadLocal&lt;Stack&lt;T&gt;&gt; threadLocal = <span class="keyword">new</span> <span class="title class_">FastThreadLocal</span>&lt;Stack&lt;T&gt;&gt;() &#123;</span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="keyword">protected</span> Stack&lt;T&gt; <span class="title function_">initialValue</span><span class="params">()</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Stack</span>&lt;T&gt;(Recycler.<span class="built_in">this</span>, Thread.currentThread(), maxCapacityPerThread, maxSharedCapacityFactor,</span><br><span class="line">              ratioMask, maxDelayedQueuesPerThread);</span><br><span class="line">            &#125;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 获取数据的入口</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">final</span> T <span class="title function_">get</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (maxCapacityPerThread == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> newObject((Handle&lt;T&gt;) NOOP_HANDLE);</span><br><span class="line">    &#125;</span><br><span class="line">    Stack&lt;T&gt; stack = threadLocal.get();</span><br><span class="line">    DefaultHandle&lt;T&gt; handle = stack.pop();</span><br><span class="line">    <span class="keyword">if</span> (handle == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="comment">// 新建一个handle</span></span><br><span class="line">        handle = stack.newHandle();</span><br><span class="line">        <span class="comment">// 去回调实现类实现的方法</span></span><br><span class="line">        handle.value = newObject(handle);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> (T) handle.value;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">DefaultHandle</span>&lt;T&gt; <span class="keyword">implements</span> <span class="title class_">Handle</span>&lt;T&gt; &#123;</span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="comment">// 回收数据的入口，在内部类当中，在内部类当中如何进行调用呢？接下来我们进一步分析netty有关ByteBuf对象回收的相关源码</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">recycle</span><span class="params">(Object object)</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> (object != value) &#123;</span><br><span class="line">              <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalArgumentException</span>(<span class="string">&quot;object does not belong to handle&quot;</span>);</span><br><span class="line">          &#125;</span><br><span class="line">          stack.push(<span class="built_in">this</span>);</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 这是一个抽象方法，需要用到Recycler类的代码类比如PooledDirectByteBuf类去实现这个方法，这里传进一个Handle，按照一般的代码设计思路，这里很显然是用来回调的，实现类去实现，上层Recycler类的地方去回调它，也就是说handle变量是在Recycler内部赋值且传入的，其实赋值的源码就在上面的get的函数里面</span></span><br><span class="line">  <span class="keyword">protected</span> <span class="keyword">abstract</span> T <span class="title function_">newObject</span><span class="params">(Handle&lt;T&gt; handle)</span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// PooledDirectByteBuf类部分源码解析</span></span><br><span class="line"><span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">PooledDirectByteBuf</span> <span class="keyword">extends</span> <span class="title class_">PooledByteBuf</span>&lt;ByteBuffer&gt; &#123;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Recycler&lt;PooledDirectByteBuf&gt; RECYCLER = <span class="keyword">new</span> <span class="title class_">Recycler</span>&lt;PooledDirectByteBuf&gt;() &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">protected</span> PooledDirectByteBuf <span class="title function_">newObject</span><span class="params">(Handle&lt;PooledDirectByteBuf&gt; handle)</span> &#123;</span><br><span class="line">        <span class="comment">// 将Recycler类赋值的handle进行构造参数进行类的初始化</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">PooledDirectByteBuf</span>(handle, <span class="number">0</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> PooledDirectByteBuf <span class="title function_">newInstance</span><span class="params">(<span class="type">int</span> maxCapacity)</span> &#123;</span><br><span class="line">    <span class="comment">// 调用Recycler去实现获取对象</span></span><br><span class="line">    <span class="type">PooledDirectByteBuf</span> <span class="variable">buf</span> <span class="operator">=</span> RECYCLER.get();</span><br><span class="line">    buf.reuse(maxCapacity);</span><br><span class="line">    <span class="keyword">return</span> buf;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span> <span class="title function_">PooledDirectByteBuf</span><span class="params">(Recycler.Handle&lt;PooledDirectByteBuf&gt; recyclerHandle, <span class="type">int</span> maxCapacity)</span> &#123;</span><br><span class="line">    <span class="comment">// 继续赋值给上层父类，为什么这样做呢，接下来进一步分析源码</span></span><br><span class="line">    <span class="built_in">super</span>(recyclerHandle, maxCapacity);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">abstract</span> <span class="keyword">class</span> <span class="title class_">PooledByteBuf</span>&lt;T&gt; <span class="keyword">extends</span> <span class="title class_">AbstractReferenceCountedByteBuf</span> &#123;</span><br><span class="line">  <span class="comment">// 这里就是赋值Handle的地方</span></span><br><span class="line">  <span class="keyword">protected</span> <span class="title function_">PooledByteBuf</span><span class="params">(Recycler.Handle&lt;? extends PooledByteBuf&lt;T&gt;&gt; recyclerHandle, <span class="type">int</span> maxCapacity)</span> &#123;</span><br><span class="line">      <span class="built_in">super</span>(maxCapacity);</span><br><span class="line">      <span class="built_in">this</span>.recyclerHandle = (Handle&lt;PooledByteBuf&lt;T&gt;&gt;) recyclerHandle;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 实现的AbstractReferenceCountedByteBuf的接口，内部调用recycle函数</span></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="keyword">protected</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">deallocate</span><span class="params">()</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (handle &gt;= <span class="number">0</span>) &#123;</span><br><span class="line">          <span class="keyword">final</span> <span class="type">long</span> <span class="variable">handle</span> <span class="operator">=</span> <span class="built_in">this</span>.handle;</span><br><span class="line">          <span class="built_in">this</span>.handle = -<span class="number">1</span>;</span><br><span class="line">          memory = <span class="literal">null</span>;</span><br><span class="line">          tmpNioBuf = <span class="literal">null</span>;</span><br><span class="line">          chunk.arena.free(chunk, handle, maxLength, cache);</span><br><span class="line">          chunk = <span class="literal">null</span>;</span><br><span class="line">          recycle();</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// 回收封装函数</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">recycle</span><span class="params">()</span> &#123;</span><br><span class="line">      recyclerHandle.recycle(<span class="built_in">this</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="keyword">class</span> <span class="title class_">AbstractReferenceCountedByteBuf</span> <span class="keyword">extends</span> <span class="title class_">AbstractByteBuf</span> &#123;</span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="comment">// 回收的入口，暴露出的API调用处</span></span><br><span class="line">      <span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">release</span><span class="params">(<span class="type">int</span> decrement)</span> &#123;</span><br><span class="line">          <span class="keyword">return</span> release0(checkPositive(decrement, <span class="string">&quot;decrement&quot;</span>));</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">private</span> <span class="type">boolean</span> <span class="title function_">release0</span><span class="params">(<span class="type">int</span> decrement)</span> &#123;</span><br><span class="line">          <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">              <span class="type">int</span> <span class="variable">refCnt</span> <span class="operator">=</span> <span class="built_in">this</span>.refCnt;</span><br><span class="line">              <span class="keyword">if</span> (refCnt &lt; decrement) &#123;</span><br><span class="line">                  <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IllegalReferenceCountException</span>(refCnt, -decrement);</span><br><span class="line">              &#125;</span><br><span class="line"></span><br><span class="line">              <span class="keyword">if</span> (refCntUpdater.compareAndSet(<span class="built_in">this</span>, refCnt, refCnt - decrement)) &#123;</span><br><span class="line">                  <span class="keyword">if</span> (refCnt == decrement) &#123;</span><br><span class="line">                      <span class="comment">// 调用释放实现函数，就是上文的回收的调用处</span></span><br><span class="line">                      deallocate();</span><br><span class="line">                      <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">                  &#125;</span><br><span class="line">                  <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">              &#125;</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="内存管理"><a href="#内存管理" class="headerlink" title="内存管理"></a>内存管理</h3></li>
+<li>伙伴分配算法 Buddy<br>首先给大家介绍一个内存管理算法，可能java程序员很怕内存管理，但这是做软件工程的基础，每天跟内存打交道，不去了解内存管理的知识不利于做高性能应用。<br>伙伴分配算法是一个很常用的内存管理算法，用于减少内存碎片，话不多说先来一个笔者自己实现的算法。<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@Description</span>: buddy algorithm</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@Author</span>: Goober</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Buddy</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// index from 1 start not 0</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="type">int</span>[] memory;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="type">int</span>[] deepths;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="type">int</span> deepth;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">Buddy</span><span class="params">(<span class="type">int</span> powerOfTwo)</span> &#123;</span><br><span class="line">        <span class="built_in">this</span>.deepth = powerOfTwo;</span><br><span class="line">        <span class="built_in">this</span>.memory = <span class="keyword">new</span> <span class="title class_">int</span>[(<span class="type">int</span>) Math.pow(<span class="number">2</span>, powerOfTwo + <span class="number">1</span>)];</span><br><span class="line">        <span class="built_in">this</span>.deepths = <span class="keyword">new</span> <span class="title class_">int</span>[(<span class="type">int</span>) Math.pow(<span class="number">2</span>, powerOfTwo + <span class="number">1</span>)];</span><br><span class="line">        initMemory();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// init each value with each id&#x27;s deepth</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">initMemory</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt;= deepth; i++) &#123;</span><br><span class="line">            <span class="type">int</span> <span class="variable">start</span> <span class="operator">=</span> (<span class="type">int</span>) Math.pow(<span class="number">2</span>, i);</span><br><span class="line">            <span class="type">int</span> <span class="variable">end</span> <span class="operator">=</span> (<span class="type">int</span>) Math.pow(<span class="number">2</span>, i + <span class="number">1</span>);</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> start; j &lt; end; j++) &#123;</span><br><span class="line">                <span class="built_in">this</span>.memory[j] = i;</span><br><span class="line">                <span class="built_in">this</span>.deepths[j] = i;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> d the d = Log2(Total/size) the size is the memory you want allocate</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">allocateNode</span><span class="params">(<span class="type">int</span> d)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">        <span class="type">int</span> <span class="variable">id</span> <span class="operator">=</span> findNode(d);</span><br><span class="line">        <span class="keyword">if</span> (id &lt; <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">Exception</span>(<span class="string">&quot;error id: &quot;</span> + id);</span><br><span class="line">        &#125;</span><br><span class="line">        memory[id] = deepth + <span class="number">1</span>;<span class="comment">// set deepth +1 to make id unusable</span></span><br><span class="line">        updateParentsAlloc(id);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> id;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">      * <span class="doctag">@param</span> id id is the return value of allocateNode</span></span><br><span class="line"><span class="comment">      */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="type">int</span> <span class="title function_">freeNode</span><span class="params">(<span class="type">int</span> id)</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">        <span class="keyword">if</span> (id &lt; <span class="number">0</span> || id &gt; ) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">Exception</span>(<span class="string">&quot;error id: &quot;</span> + id);</span><br><span class="line">        &#125;</span><br><span class="line">        memory[id] = deepths[id];</span><br><span class="line">        updateParentsFree(id);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> id;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="type">int</span> <span class="title function_">findNode</span><span class="params">(<span class="type">int</span> d)</span> &#123;</span><br><span class="line">        <span class="type">int</span> <span class="variable">id</span> <span class="operator">=</span> <span class="number">1</span>; <span class="comment">// start index</span></span><br><span class="line">        <span class="type">int</span> <span class="variable">val</span> <span class="operator">=</span> memory[id];</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (d &gt; deepth) &#123;</span><br><span class="line">            <span class="keyword">return</span> -<span class="number">2</span>; <span class="comment">// -2 presents error input,d must in range [0,deepth]</span></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (val &gt; d) &#123;</span><br><span class="line">            <span class="keyword">return</span> -<span class="number">1</span>; <span class="comment">// -1 presents no enough memory sapce for allocate</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span> ((memory[id] &lt; d || memory[id] &gt; deepths[id]) &amp;&amp; memory[id] &lt;= d) &#123;</span><br><span class="line">            <span class="type">int</span> <span class="variable">left</span> <span class="operator">=</span> id &lt;&lt; <span class="number">1</span>;</span><br><span class="line">            <span class="type">int</span> <span class="variable">right</span> <span class="operator">=</span> left + <span class="number">1</span>;</span><br><span class="line">            <span class="keyword">if</span> (memory[left] &lt; d) &#123;</span><br><span class="line">                id = left;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="keyword">if</span> (memory[left] == d) &#123;</span><br><span class="line">                    <span class="keyword">if</span> (memory[left] &gt; deepths[left]) &#123;</span><br><span class="line">                        id = left;</span><br><span class="line">                        <span class="keyword">continue</span>;</span><br><span class="line">                    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                        id = left;</span><br><span class="line">                        <span class="keyword">return</span> id;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (memory[right] &lt; d) &#123;</span><br><span class="line">                id = right;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="keyword">if</span> (memory[right] == d) &#123;</span><br><span class="line">                    <span class="keyword">if</span> (memory[right] &gt; deepths[right]) &#123;</span><br><span class="line">                        id = right;</span><br><span class="line">                        <span class="keyword">continue</span>;</span><br><span class="line">                    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                        id = right;</span><br><span class="line">                        <span class="keyword">return</span> id;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> id;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">updateParentsAlloc</span><span class="params">(<span class="keyword">final</span> <span class="type">int</span> id)</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (id == <span class="number">1</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="type">int</span> <span class="variable">tmp</span> <span class="operator">=</span> id;</span><br><span class="line">        <span class="keyword">while</span> (tmp &gt; <span class="number">1</span>) &#123;</span><br><span class="line">            <span class="type">int</span> <span class="variable">parentId</span> <span class="operator">=</span> tmp &gt;&gt;&gt; <span class="number">1</span>;</span><br><span class="line">            <span class="type">int</span> <span class="variable">buddy</span> <span class="operator">=</span> tmp ^ <span class="number">1</span>; <span class="comment">// this is the important step, this ^ operation get id&#x27;s buddy</span></span><br><span class="line"></span><br><span class="line">            <span class="type">int</span> <span class="variable">selfValue</span> <span class="operator">=</span> memory[tmp];</span><br><span class="line">            <span class="type">int</span> <span class="variable">buddyValue</span> <span class="operator">=</span> memory[buddy];</span><br><span class="line">            <span class="type">int</span> <span class="variable">min</span> <span class="operator">=</span> selfValue &lt; buddyValue ? selfValue : buddyValue;</span><br><span class="line">            <span class="comment">//set min to parent</span></span><br><span class="line">            memory[parentId] = min;</span><br><span class="line">            tmp = parentId;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">updateParentsFree</span><span class="params">(<span class="keyword">final</span> <span class="type">int</span> id)</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (id == <span class="number">1</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="type">int</span> <span class="variable">tmp</span> <span class="operator">=</span> id;</span><br><span class="line">        <span class="keyword">while</span> (tmp &gt; <span class="number">1</span>) &#123;</span><br><span class="line">            <span class="type">int</span> <span class="variable">parentId</span> <span class="operator">=</span> tmp &gt;&gt;&gt; <span class="number">1</span>;</span><br><span class="line">            <span class="type">int</span> <span class="variable">buddy</span> <span class="operator">=</span> tmp ^ <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">            <span class="type">int</span> <span class="variable">selfValue</span> <span class="operator">=</span> memory[tmp];</span><br><span class="line">            <span class="type">int</span> <span class="variable">buddyValue</span> <span class="operator">=</span> memory[buddy];</span><br><span class="line">            <span class="comment">// if equal then -1 else set min</span></span><br><span class="line">            <span class="keyword">if</span> (selfValue == buddyValue) &#123;</span><br><span class="line">                memory[parentId] = selfValue - <span class="number">1</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="type">int</span> <span class="variable">min</span> <span class="operator">=</span> selfValue &lt; buddyValue ? selfValue : buddyValue;</span><br><span class="line">                memory[parentId] = min;</span><br><span class="line">            &#125;</span><br><span class="line">            tmp = parentId;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">printAllIdValue</span><span class="params">()</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;********************************&quot;</span>);</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt;= deepth; i++) &#123;</span><br><span class="line">            <span class="type">int</span> <span class="variable">start</span> <span class="operator">=</span> (<span class="type">int</span>) Math.pow(<span class="number">2</span>, i);</span><br><span class="line">            <span class="type">int</span> <span class="variable">end</span> <span class="operator">=</span> (<span class="type">int</span>) Math.pow(<span class="number">2</span>, i + <span class="number">1</span>);</span><br><span class="line">            <span class="type">StringBuilder</span> <span class="variable">s</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StringBuilder</span>();</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> start; j &lt; end; j++) &#123;</span><br><span class="line">                s.append(memory[j] + <span class="string">&quot; &quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            System.out.println(s.toString());</span><br><span class="line">        &#125;</span><br><span class="line">        System.out.println(<span class="string">&quot;********************************&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+作为工程程序员，手写算法应该是技能必备，语言就像锤子，算法却是我们的设计思想，这是需要不断学习和优化的。不多说，buddy算法本质是池化内存并减少内存碎片，在高并发场景下，极致的内存管理是非常必要的。</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Technology/" rel="tag"># Technology</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/02/01/java/Netty%E4%B8%ADEpoll%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/" rel="prev" title="Netty源码解析-Epoll篇">
+      <i class="fa fa-chevron-left"></i> Netty源码解析-Epoll篇
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/03/01/%E5%9F%BA%E7%A1%80/tcp%20%E5%8E%9F%E7%90%86%E6%B5%85%E8%B0%88%E4%B8%8EIO%20%E6%A8%A1%E5%9E%8B%E6%B5%85%E8%B0%88/" rel="next" title="TCP协议详解">
+      TCP协议详解 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#ByteBuf-%E4%B8%89%E7%A7%8D%E7%B1%BB%E5%9E%8B"><span class="nav-number">1.</span> <span class="nav-text">ByteBuf 三种类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ByteBuf-%E5%BD%92%E5%B1%9E"><span class="nav-number">2.</span> <span class="nav-text">ByteBuf 归属</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86"><span class="nav-number">3.</span> <span class="nav-text">内存管理</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

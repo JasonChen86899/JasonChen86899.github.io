@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"jasonchen86899.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="ReactiveX 响应式编程库，这是一个程序库，通过使用可观察的事件序列来构成异步和事件驱动的程序。其简化了异步多线程编程，在以前多线程编程的世界中，锁，可重入锁，同步队列器，信号量，并发同步器，同步计数器，并行框架等都是具有一定的使用门槛，稍有不慎或者使用不成熟或对其源码理解不深入都会造成相应的程序错误和程序性能的低下。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="rxjava2 源码解析(一)">
+<meta property="og:url" content="https://jasonchen86899.github.io/2018/12/19/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%B8%80)/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="ReactiveX 响应式编程库，这是一个程序库，通过使用可观察的事件序列来构成异步和事件驱动的程序。其简化了异步多线程编程，在以前多线程编程的世界中，锁，可重入锁，同步队列器，信号量，并发同步器，同步计数器，并行框架等都是具有一定的使用门槛，稍有不慎或者使用不成熟或对其源码理解不深入都会造成相应的程序错误和程序性能的低下。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-12-18T16:00:00.000Z">
+<meta property="article:modified_time" content="2023-04-13T15:35:56.221Z">
+<meta property="article:tag" content="Technology">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://jasonchen86899.github.io/2018/12/19/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%B8%80)/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'CN'
+  };
+</script>
+
+  <title>rxjava2 源码解析(一) | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="CN">
+    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2018/12/19/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%B8%80)/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          rxjava2 源码解析(一)
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2018-12-19 00:00:00" itemprop="dateCreated datePublished" datetime="2018-12-19T00:00:00+08:00">2018-12-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-13 23:35:56" itemprop="dateModified" datetime="2023-04-13T23:35:56+08:00">2023-04-13</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/rxjava2/" itemprop="url" rel="index"><span itemprop="name">rxjava2</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>ReactiveX 响应式编程库，这是一个程序库，通过使用<strong>可观察的事件序列</strong>来构成<strong>异步</strong>和<strong>事件驱动</strong>的程序。<br>其简化了异步多线程编程，在以前多线程编程的世界中，锁，可重入锁，同步队列器，信号量，并发同步器，同步计数器，<br>并行框架等都是具有一定的使用门槛，稍有不慎或者使用不成熟或对其源码理解不深入都会造成相应的程序错误和程序性能的低下。</p>
+<span id="more"></span>
+
+<h4 id="观察者模型"><a href="#观察者模型" class="headerlink" title="观察者模型"></a>观察者模型</h4><p>24种设计模式的一种，观察者Observer和主题Subject之间建立组合关系：Subject类实例中包含观察者Observer的引用，<br>增加引用的目的就是为了通知notify，重要点就是要在Subject的notify功能中调用Observer的接受处理函数receiveAndHandle<br>个人理解：观察者模型其实是一种异步回调通知，将数据的处理者先注册到数据的输入者那边，这样通过数据输入者执行某个函数<br>去调用数据处理者的某个处理方法。</p>
+<h4 id="RxJava2"><a href="#RxJava2" class="headerlink" title="RxJava2"></a>RxJava2</h4><p>Rx有很多语言的实现库，目前比较出名的就是RxJava2。这里主讲Rxjava2的部门源码解读，内部设计机制和内部执行的线程模型</p>
+<h4 id="基本使用"><a href="#基本使用" class="headerlink" title="基本使用"></a>基本使用</h4><p>使用rxjava2大致分为四个操作：</p>
+<ol>
+<li>建立数据发布者</li>
+<li>添加数据变换函数</li>
+<li>设置数据发布线程池机制，订阅线程池机制</li>
+<li>添加数据订阅者<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 创建flowable</span></span><br><span class="line">Flowable&lt;Map&lt;String, Map&lt;String,Object&gt;&gt;&gt; esFlowable = Flowable.create(<span class="keyword">new</span> <span class="title class_">ElasticSearchAdapter</span>(), BackpressureStrategy.BUFFER);</span><br><span class="line"><span class="type">Disposable</span> <span class="variable">disposeable</span> <span class="operator">=</span> esFlowable</span><br><span class="line">    <span class="comment">// map操作 1.采集、2.清洗</span></span><br><span class="line">    .map(DataProcess::dataProcess)</span><br><span class="line">    .subscribeOn(Schedulers.single())</span><br><span class="line">    <span class="comment">//计算任务调度器</span></span><br><span class="line">    .observeOn(Schedulers.computation())</span><br><span class="line">    <span class="comment">// 订阅者 consumer 执行运算</span></span><br><span class="line">    .subscribe(keyMaps -&gt; <span class="keyword">new</span> <span class="title class_">PredictEntranceForkJoin</span>().predictLogic(keyMaps));</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>以上就是一个实际的例子，里面的ElasticSearchAdapter实际隐藏了一个用户自定义实现数据生产的subscribe接口：FlowableOnSubscribe<T> source<br>用户需要实现这个接口函数：void subscribe(@NonNull FlowableEmitter<T> emitter) throws Exception 这个接口主要用于内部回调，后面会有具体分析，<br>emitter 英文翻译发射器，很形象，数据就是由它产生的，也是业务系统需要对接的地方，一般业务代码实现这个接口类然后发射出需要处理的原始数据。<br>map函数作为数据变换处理的功能函数将原来的数据输入变换为另外的数据集合，然后设置发布的线程池机制subscribeOn(Schedulers.single())，订阅的线程池<br>机制observeOn(Schedulers.computation())，最后添加数据订阅函数，也就是业务系统需要实现另外一个地方，从而实现数据的自定义处理消费。</p>
+<h4 id="rxjava2支持的lambda语法"><a href="#rxjava2支持的lambda语法" class="headerlink" title="rxjava2支持的lambda语法"></a>rxjava2支持的lambda语法</h4><ul>
+<li>创建操作符：just fromArray empty error never fromIterable timer interval intervalRange range/rangeLong defer</li>
+<li>变换操作符：map flatMap flatmapIterable concatMap switchmap cast scan buffer toList groupBy toMap</li>
+<li>过滤操作符：filter take takeLast firstElement/lastElement first/last firstOrError/lastOrError elementAt/elementAtOrError ofType skip/skipLast<br>ignoreElements distinct/distinctUntilChanged timeout throttleFirst throttleLast/sample throttleWithTimeout/debounce</li>
+<li>合并聚合操作符：startWith/startWithArray concat/concatArray merge/mergeArray concatDelayError/mergeDelayError zip combineLatest combineLatestDelayError<br>reduce count collect</li>
+<li>条件操作符：all ambArray contains any isEmpty defaultIfEmpty switchIfEmpty sequenceEqual takeUntil takeWhile skipUntil skipWhile</li>
+</ul>
+<p>有一篇博客详细介绍了rxjava的各种操作符，链接<a target="_blank" rel="noopener" href="https://maxwell-nc.github.io/android/rxjava2-1.html">https://maxwell-nc.github.io/android/rxjava2-1.html</a></p>
+<h4 id="rxjava2-源码解析"><a href="#rxjava2-源码解析" class="headerlink" title="rxjava2 源码解析"></a>rxjava2 源码解析</h4><p>阅读源码个人比较喜欢带着疑惑去看，这样与目标有方向。接下来的分析以Flowable为例，这里所有的例子都是按照Flowable为例，因为Flowable在实际<br>项目中比Observable可能用的多，因为实际场景中数据生产速度和数据消费速度都会有一定的不一致甚至数据生产速度远大于数据消费速度。</p>
+<h5 id="数据发布和订阅"><a href="#数据发布和订阅" class="headerlink" title="数据发布和订阅"></a>数据发布和订阅</h5><p>首先从数据订阅者开始，点进源码看进一步解析，里面有很多subscribe重载接口：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> Disposable <span class="title function_">subscribe</span><span class="params">(Consumer&lt;? <span class="built_in">super</span> T&gt; onNext)</span> &#123;</span><br><span class="line">  <span class="keyword">return</span> subscribe(onNext, Functions.ON_ERROR_MISSING,</span><br><span class="line">      Functions.EMPTY_ACTION, FlowableInternalHelper.RequestMax.INSTANCE);</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> Disposable <span class="title function_">subscribe</span><span class="params">(Consumer&lt;? <span class="built_in">super</span> T&gt; onNext, Consumer&lt;? <span class="built_in">super</span> Throwable&gt; onError,</span></span><br><span class="line"><span class="params">    Action onComplete, Consumer&lt;? <span class="built_in">super</span> Subscription&gt; onSubscribe)</span> &#123;</span><br><span class="line">  ObjectHelper.requireNonNull(onNext, <span class="string">&quot;onNext is null&quot;</span>);</span><br><span class="line">  ObjectHelper.requireNonNull(onError, <span class="string">&quot;onError is null&quot;</span>);</span><br><span class="line">  ObjectHelper.requireNonNull(onComplete, <span class="string">&quot;onComplete is null&quot;</span>);</span><br><span class="line">  ObjectHelper.requireNonNull(onSubscribe, <span class="string">&quot;onSubscribe is null&quot;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">//组装成FlowableSubscriber</span></span><br><span class="line">  LambdaSubscriber&lt;T&gt; ls = <span class="keyword">new</span> <span class="title class_">LambdaSubscriber</span>&lt;T&gt;(onNext, onError, onComplete, onSubscribe);</span><br><span class="line">  <span class="comment">//调用核心的订阅方法</span></span><br><span class="line">  subscribe(ls);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> ls;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">subscribe</span><span class="params">(FlowableSubscriber&lt;? <span class="built_in">super</span> T&gt; s)</span> &#123;</span><br><span class="line">    ObjectHelper.requireNonNull(s, <span class="string">&quot;s is null&quot;</span>);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">//注册一些钩子这里对此不进行讲解，主要不是核心方法</span></span><br><span class="line">        Subscriber&lt;? <span class="built_in">super</span> T&gt; z = RxJavaPlugins.onSubscribe(<span class="built_in">this</span>, s);</span><br><span class="line">        ObjectHelper.requireNonNull(z, <span class="string">&quot;The RxJavaPlugins.onSubscribe hook returned a null FlowableSubscriber. Please check the handler provided to RxJavaPlugins.setOnFlowableSubscribe for invalid null returns. Further reading: https://github.com/ReactiveX/RxJava/wiki/Plugins&quot;</span>);</span><br><span class="line">        <span class="comment">//核心订阅方法，从名字也能读出是指订阅实际调用处</span></span><br><span class="line">        <span class="comment">//不同的数据产生类也就是实现Flowable抽象类的类</span></span><br><span class="line">        <span class="comment">//比如FlowableCreate，FlowSingle，FlowMap等等去实现自己的实际方法</span></span><br><span class="line">        subscribeActual(z);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (NullPointerException e) &#123; <span class="comment">// NOPMD</span></span><br><span class="line">        <span class="keyword">throw</span> e;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable e) &#123;</span><br><span class="line">        Exceptions.throwIfFatal(e);</span><br><span class="line">        <span class="comment">// can&#x27;t call onError because no way to know if a Subscription has been set or not</span></span><br><span class="line">        <span class="comment">// can&#x27;t call onSubscribe because the call might have set a Subscription already</span></span><br><span class="line">        RxJavaPlugins.onError(e);</span><br><span class="line"></span><br><span class="line">        <span class="type">NullPointerException</span> <span class="variable">npe</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">NullPointerException</span>(<span class="string">&quot;Actually not, but can&#x27;t throw other exceptions due to RS&quot;</span>);</span><br><span class="line">        npe.initCause(e);</span><br><span class="line">        <span class="keyword">throw</span> npe;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//选择FlowCreate的subscribeActual(Subscriber&lt;? super T&gt; t)方法进行剖析</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">subscribeActual</span><span class="params">(Subscriber&lt;? <span class="built_in">super</span> T&gt; t)</span> &#123;</span><br><span class="line">    BaseEmitter&lt;T&gt; emitter;</span><br><span class="line">    <span class="comment">//根据不同的回压模式选择不一样的数据发射类</span></span><br><span class="line">    <span class="comment">//神奇的回压模式其实本质上就是一个个数据发射-消费模式</span></span><br><span class="line">    <span class="keyword">switch</span> (backpressure) &#123;</span><br><span class="line">    <span class="keyword">case</span> MISSING: &#123;</span><br><span class="line">        emitter = <span class="keyword">new</span> <span class="title class_">MissingEmitter</span>&lt;T&gt;(t);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">case</span> ERROR: &#123;</span><br><span class="line">        emitter = <span class="keyword">new</span> <span class="title class_">ErrorAsyncEmitter</span>&lt;T&gt;(t);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">case</span> DROP: &#123;</span><br><span class="line">        emitter = <span class="keyword">new</span> <span class="title class_">DropAsyncEmitter</span>&lt;T&gt;(t);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">case</span> LATEST: &#123;</span><br><span class="line">        emitter = <span class="keyword">new</span> <span class="title class_">LatestAsyncEmitter</span>&lt;T&gt;(t);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">default</span>: &#123;</span><br><span class="line">        emitter = <span class="keyword">new</span> <span class="title class_">BufferAsyncEmitter</span>&lt;T&gt;(t, bufferSize());</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//回调注册的FlowableSubscriber的onSubscribe方法</span></span><br><span class="line">    <span class="comment">//这里非常重要，因为这里涉及了rxjava特有的 request请求再消费数据的模式</span></span><br><span class="line">    <span class="comment">//也就是说如果没有request数据，那么就不会调用数据发射（发布）者的onNext方法，</span></span><br><span class="line">    <span class="comment">//那么数据订阅者也就不会消费到数据</span></span><br><span class="line">    t.onSubscribe(emitter);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">//回调注册的FlowableOnSubscribe&lt;T&gt; source的subscribe方法</span></span><br><span class="line">        <span class="comment">//这个source其实就是在创建Flow流时注册的数据产生类，进一步验证了上文中</span></span><br><span class="line">        <span class="comment">//提及的其需要实现FlowableOnSubscribe&lt;T&gt;接口</span></span><br><span class="line">        source.subscribe(emitter);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable ex) &#123;</span><br><span class="line">        Exceptions.throwIfFatal(ex);</span><br><span class="line">        emitter.onError(ex);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//重点分析BufferAsyncEmitter这个类，看字面意思这是一个switch的默认选择类，</span></span><br><span class="line"><span class="comment">//但其实它是回压策略为BUFFER时的数据发射类</span></span><br><span class="line"><span class="comment">//首先这个类的构造函数具有两个参数，很明显这是 actul就是前面的t这个变量，也就是</span></span><br><span class="line"><span class="comment">//注册的数据消费（订阅）者，capacityHint则是设置容量大小的，默认是128，如果需要扩大需要</span></span><br><span class="line"><span class="comment">//自行设置环境变量 rx2.buffer-size</span></span><br><span class="line">BufferAsyncEmitter(Subscriber&lt;? <span class="built_in">super</span> T&gt; actual, <span class="type">int</span> capacityHint) &#123;</span><br><span class="line">    <span class="built_in">super</span>(actual);</span><br><span class="line">    <span class="built_in">this</span>.queue = <span class="keyword">new</span> <span class="title class_">SpscLinkedArrayQueue</span>&lt;T&gt;(capacityHint);</span><br><span class="line">    <span class="built_in">this</span>.wip = <span class="keyword">new</span> <span class="title class_">AtomicInteger</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onNext</span><span class="params">(T t)</span> &#123;</span><br><span class="line">   <span class="keyword">if</span> (done || isCancelled()) &#123;</span><br><span class="line">       <span class="keyword">return</span>;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   <span class="keyword">if</span> (t == <span class="literal">null</span>) &#123;</span><br><span class="line">       onError(<span class="keyword">new</span> <span class="title class_">NullPointerException</span>(<span class="string">&quot;onNext called with null. Null values are generally not allowed in 2.x operators and sources.&quot;</span>));</span><br><span class="line">       <span class="keyword">return</span>;</span><br><span class="line">   &#125;</span><br><span class="line">   <span class="comment">// queue 是存储元素的队列，也就是buffer的核心存储。</span></span><br><span class="line">   <span class="comment">// 当我们开始向下游发送数据的时候首先存入队列，然后下面的drain则是进行核心的</span></span><br><span class="line">   queue.offer(t);</span><br><span class="line">   drain();</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//核心的类</span></span><br><span class="line"><span class="keyword">void</span> <span class="title function_">drain</span><span class="params">()</span> &#123;</span><br><span class="line">  <span class="comment">//关键的地方 解决生产速率和消费速率不一致的关键地方，也是我们写并发程序值得借鉴的地方。</span></span><br><span class="line">  <span class="comment">//当数据的产生者（发布）频繁调用onNext方法时，这里产生并发调用关系，wip变量是atomic变量，</span></span><br><span class="line">  <span class="comment">//当第一次执行drain函数时，为0继续执行后面的流程，当快速的继续调用onNext方法时，wip不为0然后返回</span></span><br><span class="line">  <span class="comment">//那么后面的流程我们其实已经很大概率会猜测到应该是去取队列的数据然后做一些操作</span></span><br><span class="line"> <span class="keyword">if</span> (wip.getAndIncrement() != <span class="number">0</span>) &#123;</span><br><span class="line">     <span class="keyword">return</span>;</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"> <span class="type">int</span> <span class="variable">missed</span> <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"> <span class="comment">//这里的downstream其实就是注册的数据订阅者，它是基类BaseEmitter的变量，前面初始化时调用了基类的构造函数</span></span><br><span class="line"> <span class="keyword">final</span> Subscriber&lt;? <span class="built_in">super</span> T&gt; a = downstream;</span><br><span class="line"> <span class="keyword">final</span> SpscLinkedArrayQueue&lt;T&gt; q = queue;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">     <span class="type">long</span> <span class="variable">r</span> <span class="operator">=</span> get();</span><br><span class="line">     <span class="type">long</span> <span class="variable">e</span> <span class="operator">=</span> <span class="number">0L</span>;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">while</span> (e != r) &#123;</span><br><span class="line">         <span class="keyword">if</span> (isCancelled()) &#123;</span><br><span class="line">             q.clear();</span><br><span class="line">             <span class="keyword">return</span>;</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         <span class="type">boolean</span> <span class="variable">d</span> <span class="operator">=</span> done;</span><br><span class="line">         <span class="comment">//取队列中的数据</span></span><br><span class="line">         <span class="type">T</span> <span class="variable">o</span> <span class="operator">=</span> q.poll();</span><br><span class="line"></span><br><span class="line">         <span class="type">boolean</span> <span class="variable">empty</span> <span class="operator">=</span> o == <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">         <span class="keyword">if</span> (d &amp;&amp; empty) &#123;</span><br><span class="line">             <span class="type">Throwable</span> <span class="variable">ex</span> <span class="operator">=</span> error;</span><br><span class="line">             <span class="keyword">if</span> (ex != <span class="literal">null</span>) &#123;</span><br><span class="line">                 error(ex);</span><br><span class="line">             &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                 complete();</span><br><span class="line">             &#125;</span><br><span class="line">             <span class="keyword">return</span>;</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         <span class="keyword">if</span> (empty) &#123;</span><br><span class="line">             <span class="keyword">break</span>;</span><br><span class="line">         &#125;</span><br><span class="line">         <span class="comment">//此处回调订阅者的onNext方法去真正的执行数据实例程序</span></span><br><span class="line">         <span class="comment">//到此数据从产生到消费其生命周期已经走完</span></span><br><span class="line">         a.onNext(o);</span><br><span class="line"></span><br><span class="line">         e++;</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">if</span> (e == r) &#123;</span><br><span class="line">         <span class="keyword">if</span> (isCancelled()) &#123;</span><br><span class="line">             q.clear();</span><br><span class="line">             <span class="keyword">return</span>;</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         <span class="type">boolean</span> <span class="variable">d</span> <span class="operator">=</span> done;</span><br><span class="line"></span><br><span class="line">         <span class="type">boolean</span> <span class="variable">empty</span> <span class="operator">=</span> q.isEmpty();</span><br><span class="line"></span><br><span class="line">         <span class="keyword">if</span> (d &amp;&amp; empty) &#123;</span><br><span class="line">             <span class="type">Throwable</span> <span class="variable">ex</span> <span class="operator">=</span> error;</span><br><span class="line">             <span class="keyword">if</span> (ex != <span class="literal">null</span>) &#123;</span><br><span class="line">                 error(ex);</span><br><span class="line">             &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                 complete();</span><br><span class="line">             &#125;</span><br><span class="line">             <span class="keyword">return</span>;</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">if</span> (e != <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">//标记已经消费的个数</span></span><br><span class="line">         BackpressureHelper.produced(<span class="built_in">this</span>, e);</span><br><span class="line">     &#125;</span><br><span class="line">     <span class="comment">//前面说过wip会原子性的增加，而且是每调用一次onNext增加一次</span></span><br><span class="line">     <span class="comment">//missed从其名解释是指错过的意思，个人理解是错过消费的数据个数，错过消费</span></span><br><span class="line">     <span class="comment">//的意思其实就是指没有进行a.onNext数据消费处理的数据</span></span><br><span class="line">     missed = wip.addAndGet(-missed);</span><br><span class="line">     <span class="keyword">if</span> (missed == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">//如果没有错过的数据也就是全部都消费完那就跳出for循环</span></span><br><span class="line">        <span class="comment">//此处for循环方式和JUC源码中Doug Lea的做法都有类似之处</span></span><br><span class="line">         <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="操作符与线程池机制原理剖析"><a href="#操作符与线程池机制原理剖析" class="headerlink" title="操作符与线程池机制原理剖析"></a>操作符与线程池机制原理剖析</h5><p>首先在进行源码分析之前讲述一下一种模式：装饰者模式 24种模式中的一种，在java io源码包中广泛应用<br>简单的来说是与被装饰者具有相同接口父类同时又对被装饰者进行一层封装（持有被装饰者的引用），以此用来加上自身的特性。<br>回归主题，当我们使用操作符和线程池机制的时候做法都是在数据发布者后面进行相应的函数操作：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Disposable</span> <span class="variable">disposeable</span> <span class="operator">=</span> scheduleObservable</span><br><span class="line">            .map(aLong -&gt; dataAdapter.handlerDpti())</span><br><span class="line">            .map(DataProcess::dataProcess)</span><br><span class="line">            .subscribeOn(Schedulers.single())</span><br></pre></td></tr></table></figure>
+<p>那么为何这么做，接下来我们进行源码分析：</p>
+<ol>
+<li>subscribeOn map 方法都在Flowable类中：<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> &lt;R&gt; Flowable&lt;R&gt; <span class="title function_">map</span><span class="params">(Function&lt;? <span class="built_in">super</span> T, ? extends R&gt; mapper)</span> &#123;</span><br><span class="line">        ObjectHelper.requireNonNull(mapper, <span class="string">&quot;mapper is null&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> RxJavaPlugins.onAssembly(<span class="keyword">new</span> <span class="title class_">FlowableMap</span>&lt;T, R&gt;(<span class="built_in">this</span>, mapper));</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> Flowable&lt;T&gt; <span class="title function_">subscribeOn</span><span class="params">(<span class="meta">@NonNull</span> Scheduler scheduler, <span class="type">boolean</span> requestOn)</span> &#123;</span><br><span class="line">        ObjectHelper.requireNonNull(scheduler, <span class="string">&quot;scheduler is null&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> RxJavaPlugins.onAssembly(<span class="keyword">new</span> <span class="title class_">FlowableSubscribeOn</span>&lt;T&gt;(<span class="built_in">this</span>, scheduler, requestOn));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+这里是实例方法调用，传进了this对象这个很关键，这里其实就是我们前面提到的装修者模式，持有上游对象也就是数据源source的引用<br>以FlowableSubscribeOn为例进行分析，这个类经常会用到，因为其内部设置了线程池的机制所以在实际使用项目中会大量使用，那么是如何<br>做到线程池方式的呢？进一步利用源码进行分析：</li>
+<li>装饰者的内部代码分析<br>以subscribeOn 为例<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//很明显 实现的抽象类其实是装修者抽象类</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">FlowableSubscribeOn</span>&lt;T&gt; <span class="keyword">extends</span> <span class="title class_">AbstractFlowableWithUpstream</span>&lt;T , T&gt;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 这个在前面我们重点分析过这是实际订阅执行的类方法，其实也就是我们说的装饰方法，里面实现了每个类自己的特定“装修”方法</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">subscribeActual</span><span class="params">(<span class="keyword">final</span> Subscriber&lt;? <span class="built_in">super</span> T&gt; s)</span> &#123;</span><br><span class="line">    <span class="comment">// 获取订阅者，下一篇文章会重点讲述rxjava的线程池分配机制</span></span><br><span class="line">    Scheduler.<span class="type">Worker</span> <span class="variable">w</span> <span class="operator">=</span> scheduler.createWorker();</span><br><span class="line">    <span class="keyword">final</span> SubscribeOnSubscriber&lt;T&gt; sos = <span class="keyword">new</span> <span class="title class_">SubscribeOnSubscriber</span>&lt;T&gt;(s, w, source, nonScheduledRequests);</span><br><span class="line">    <span class="comment">// 跟前面一样调用数据订阅者的onSubscribe方法</span></span><br><span class="line">    s.onSubscribe(sos);</span><br><span class="line">    <span class="comment">// 由分配的调度者进行订阅任务的执行</span></span><br><span class="line">    w.schedule(sos);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 开始分析SubscribeOnSubscriber这个静态内部类的内部代码</span></span><br><span class="line"><span class="comment">// 实现了Runable用来异步执行</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">class</span> <span class="title class_">SubscribeOnSubscriber</span>&lt;T&gt; <span class="keyword">extends</span> <span class="title class_">AtomicReference</span>&lt;Thread&gt;</span><br><span class="line">  <span class="keyword">implements</span> <span class="title class_">FlowableSubscriber</span>&lt;T&gt;, Subscription, Runnable</span><br><span class="line">  <span class="comment">// 下游订阅引用</span></span><br><span class="line">  <span class="keyword">final</span> Subscriber&lt;? <span class="built_in">super</span> T&gt; downstream;</span><br><span class="line">  <span class="comment">// 上游发射类引用</span></span><br><span class="line">  <span class="keyword">final</span> AtomicReference&lt;Subscription&gt; upstream;</span><br><span class="line">  <span class="comment">// 上游数据源引用 跟上游引用有区别，简单的说每个上游数据源引用有自己的上游发射类</span></span><br><span class="line">  Publisher&lt;T&gt; source;</span><br><span class="line"><span class="comment">// 这里是装饰的核心代码</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">    lazySet(Thread.currentThread());</span><br><span class="line">    <span class="comment">// source即为上游，表示其所装饰的源</span></span><br><span class="line">    Publisher&lt;T&gt; src = source;</span><br><span class="line">    source = <span class="literal">null</span>;</span><br><span class="line">    <span class="comment">// 调用上游的自身的subscribe方法，在上面一开始我们说这个方法内部会去调用自身实现的subscribeActual方法</span></span><br><span class="line">    <span class="comment">// 从而实现上游自己的特定方法，比如假设source是FlowCreate那么此处就会调用前面一开始我们所讲到的数据的发射</span></span><br><span class="line">    src.subscribe(<span class="built_in">this</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 既然已经保证了数据的发射那么数据的处理是不是也要处理</span></span><br><span class="line"><span class="comment">// 很明显这是调用了下游订阅者的onNext方法</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">onNext</span><span class="params">(T t)</span> &#123;</span><br><span class="line">    downstream.onNext(t);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="本文总结"><a href="#本文总结" class="headerlink" title="本文总结"></a>本文总结</h4>笔者喜欢总结，总结意味着我们反思和学习前面的知识点，应用点以及自身的不足。</li>
+</ol>
+<ul>
+<li>设计模式：观察者模式和装修者模式</li>
+<li>并发处理技巧：回压策略（其实本质是缓存）的实现原理以及细节点</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Technology/" rel="tag"># Technology</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/05/19/%E5%88%86%E5%B8%83%E5%BC%8F/%E5%88%86%E5%B8%83%E5%BC%8F%E7%90%86%E8%AE%BA%E8%8D%9F%E8%90%83/" rel="prev" title="分布式CAP理论与BASE理论">
+      <i class="fa fa-chevron-left"></i> 分布式CAP理论与BASE理论
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/01/06/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%BA%8C)/" rel="next" title="rxjava2 源码解析(二)">
+      rxjava2 源码解析(二) <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%A7%82%E5%AF%9F%E8%80%85%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.</span> <span class="nav-text">观察者模型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#RxJava2"><span class="nav-number">2.</span> <span class="nav-text">RxJava2</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8"><span class="nav-number">3.</span> <span class="nav-text">基本使用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#rxjava2%E6%94%AF%E6%8C%81%E7%9A%84lambda%E8%AF%AD%E6%B3%95"><span class="nav-number">4.</span> <span class="nav-text">rxjava2支持的lambda语法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#rxjava2-%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="nav-number">5.</span> <span class="nav-text">rxjava2 源码解析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%8F%91%E5%B8%83%E5%92%8C%E8%AE%A2%E9%98%85"><span class="nav-number">5.1.</span> <span class="nav-text">数据发布和订阅</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%93%8D%E4%BD%9C%E7%AC%A6%E4%B8%8E%E7%BA%BF%E7%A8%8B%E6%B1%A0%E6%9C%BA%E5%88%B6%E5%8E%9F%E7%90%86%E5%89%96%E6%9E%90"><span class="nav-number">5.2.</span> <span class="nav-text">操作符与线程池机制原理剖析</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%9C%AC%E6%96%87%E6%80%BB%E7%BB%93"><span class="nav-number">6.</span> <span class="nav-text">本文总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

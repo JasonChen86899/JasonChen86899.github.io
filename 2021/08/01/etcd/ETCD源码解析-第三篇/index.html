@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"jasonchen86899.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="ETCD 多版本控制">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ETCD源码解析-第三篇">
+<meta property="og:url" content="https://jasonchen86899.github.io/2021/08/01/etcd/ETCD%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%AC%AC%E4%B8%89%E7%AF%87/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="ETCD 多版本控制">
+<meta property="og:locale">
+<meta property="article:published_time" content="2021-07-31T16:00:00.000Z">
+<meta property="article:modified_time" content="2023-04-13T15:38:02.543Z">
+<meta property="article:tag" content="Technology">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://jasonchen86899.github.io/2021/08/01/etcd/ETCD%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%AC%AC%E4%B8%89%E7%AF%87/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'CN'
+  };
+</script>
+
+  <title>ETCD源码解析-第三篇 | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="CN">
+    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2021/08/01/etcd/ETCD%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%AC%AC%E4%B8%89%E7%AF%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          ETCD源码解析-第三篇
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-08-01 00:00:00" itemprop="dateCreated datePublished" datetime="2021-08-01T00:00:00+08:00">2021-08-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-04-13 23:38:02" itemprop="dateModified" datetime="2023-04-13T23:38:02+08:00">2023-04-13</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/ETCD/" itemprop="url" rel="index"><span itemprop="name">ETCD</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="ETCD-多版本控制"><a href="#ETCD-多版本控制" class="headerlink" title="ETCD 多版本控制"></a>ETCD 多版本控制</h1><span id="more"></span>
+
+<p>多版本控制<br>MVCC（Multi-Version Concurrency Control）机制</p>
+<p>和mysql一样，etcd 同样采用mvcc机制处理读写冲突和事务隔离级别问题。</p>
+<p>MVCC 模块主要由 BoltDB 和 treeIndex 两部分组成</p>
+<p>BoltDB 是一个基于 B+ 树的 KV 存储数据库。TreeIndex 模块基于内存版 BTree 实现键的索引管理，它是基于 Google 开源项目 Btree 实现的一个索引模块，保存了每一个 key 与对应的版本号（Revision）的映射关系等信息。</p>
+<p>etcd 存储以数据的 Revision 作为 key。键值、创建时的版本号、最后修改的版本号等作为 value 保存到数据库。etcd 对于每一个键值对都维护了一个全局的 Revision 版本号，键值对的每一次变化都会被记录。获取某一个 key 对应的值时，需要先获取该 key 对应的 Revision，再通过它找到对应的值。</p>
+<p>MVCC 写过程解析</p>
+<p>首先我们结合之前写请求实现流程图的内容分析 MVCC 写请求的过程：</p>
+<p>写请求实现流程图</p>
+<p>上图为写请求的过程，写请求在底层统一调用 put 方法。treeIndex 中根据查询的 key 从 B-tree 查找得到的是一个 keyIndex 对象，里面包含了 Revision 等全局版本号信息。</p>
+<p>keyIndex 结构体定义如下所示：</p>
+<p>// 位于 mvcc/key_index.go:70</p>
+<p>type keyIndex struct {</p>
+<p>key []byte // key 名称</p>
+<p>modified revision // 最后一次修改的 etcd 版本号</p>
+<p>generations []generation // 保存了 key 多次修改的版本号信息</p>
+<p>}</p>
+<p>keyIndex 中保存了 key、modified 和 generations。</p>
+<p>其中 generations 的结构体定义如下：</p>
+<p>// 位于 mvcc/key_index.go:335</p>
+<p>type generation struct {</p>
+<p>ver int64</p>
+<p>created revision // generation 创建时的版本</p>
+<p>revs []revision</p>
+<p>}</p>
+<p>generation 中的 ver 表示当前 generation 包含的修改次数，created 记录创建 generation 时的 Revision 版本，最后的 revs 用于存储所有的版本信息。</p>
+<p>Revision 结构体的定义如下：</p>
+<p>// 位于 mvcc/revision.go:26</p>
+<p>type revision struct {</p>
+<p>// 事务发生时自动生成的主版本号</p>
+<p>main int64</p>
+<p>// 事务内的子版本号</p>
+<p>sub int64</p>
+<p>}</p>
+<p>Revision 中定义了一个全局递增的主版本号main，发生 put、txn、del 操作会递增，一个事务内的 main 版本号是唯一的；事务内的子版本号定义为sub，事务发生 put 和 del 操作时，从 0 开始递增。</p>
+<p>keyIndex、generation 和 revision 之间的关系</p>
+<p>由于是第一次写，treeIndex 查询为空。etcd 会根据当前的全局版本号加 1（集群初始化从 1 开始），根据执行的结果，我们这里全局版本号在写之前为 2，自增之后变成 3。因此操作对应的版本号 revision {3,0}，对应写入 BoltDB 的 key。写入的 value 对应 mvccpb.KeyValue 结构体，其由 key、value、create_revision、mod_revision、version、lease 等字段组成，定义如下所示：</p>
+<p>type KeyValue struct {</p>
+<p>// 键</p>
+<p>Key []byte <code>protobuf:&quot;bytes,1,opt,name=key,proto3&quot; json:&quot;key,omitempty&quot;</code></p>
+<p>// 创建时的版本号</p>
+<p>CreateRevision int64 <code>protobuf:&quot;varint,2,opt,name=create_revision,json=createRevision,proto3&quot; json:&quot;create_revision,omitempty&quot;</code></p>
+<p>// 最后一次修改的版本号</p>
+<p>ModRevision int64 <code>protobuf:&quot;varint,3,opt,name=mod_revision,json=modRevision,proto3&quot; json:&quot;mod_revision,omitempty&quot;</code></p>
+<p>// 表示 key 的修改次数，删除 key 会重置为 0，key 的更新会导致 version 增加</p>
+<p>Version int64 <code>protobuf:&quot;varint,4,opt,name=version,proto3&quot; json:&quot;version,omitempty&quot;</code></p>
+<p>// 值</p>
+<p>Value []byte <code>protobuf:&quot;bytes,5,opt,name=value,proto3&quot; json:&quot;value,omitempty&quot;</code></p>
+<p>// 键值对绑定的租约 LeaseId，0 表示未绑定</p>
+<p>Lease int64 <code>protobuf:&quot;varint,6,opt,name=lease,proto3&quot; json:&quot;lease,omitempty&quot;</code></p>
+<p>}</p>
+<p>构造好 key 和 value 之后，就可以写入 BoltDB 了。并同步更新 buffer。</p>
+<p>此外还需将本次修改的版本号与用户 key 的映射关系保存到 treeIndex 模块中，key hello 的 keyIndex。对照着上面介绍的 keyIndex、generation 和 Revision 结构体的定义，写入的 keyIndex 记录如下所示：</p>
+<p>key: “hello”</p>
+<p>modified: &lt;3,0&gt;</p>
+<p>generations:</p>
+<p>[{ver:1,created:&lt;3,0&gt;,revs: [&lt;3,0&gt;]} ]</p>
+<p>modified 为最后一次修改的 etcd 版本号，这里是 &lt;3,0&gt;。generations 数组有一个元素，首次创建 ver 为 1，created 创建时的版本为 &lt;3,0&gt;，revs 数组中也只有一个元素，存储了所有的版本信息。</p>
+<p>至此，put 事务基本结束，之所以说是基本完场，是因为还差最后一步——写入的数据持久化到磁盘。数据持久化的操作由 Backend 的协程来完成，以此提高写的性能和吞吐量。协程通过事务批量提交，将 BoltDB 内存中的数据持久化存储磁盘中。</p>
+<p>这里我们要提一下键值对的删除。与更新一样，键值对的删除也是异步完成，每当一个 key 被删除时都会调用 tombstone 方法向当前的 generation 中追加一个空的 generation 对象，其实现如下所示：</p>
+<p>// 位于 mvcc/key_index.go:119</p>
+<p>func (ki *keyIndex) tombstone(lg *zap.Logger, main int64, sub int64) error {</p>
+<p>if ki.isEmpty() {</p>
+<p>lg.Panic(</p>
+<p>“‘tombstone’ got an unexpected empty keyIndex”,</p>
+<p>zap.String(“key”, string(ki.key)),</p>
+<p>)</p>
+<p>}</p>
+<p>if ki.generations[len(ki.generations)-1].isEmpty() {</p>
+<p>return ErrRevisionNotFound</p>
+<p>}</p>
+<p>ki.put(lg, main, sub)</p>
+<p>ki.generations = append(ki.generations, generation{})</p>
+<p>keysGauge.Dec()</p>
+<p>return nil</p>
+<p>}</p>
+<p>这个空的 generation 标识说明当前的 key 已经被删除了。除此之外，生成的 BoltDB key 版本号中追加了 t（tombstone），如 &lt;3,0,t&gt;，用于标识删除，而对应的 value 变成了只含 key 属性。</p>
+<p>当查询键值对时，treeIndex 模块查找到 key 对应的 keyIndex，若查询的版本号大于等于被删除时的版本号，则会返回空。而真正删除 treeIndex 中的索引对象以及 BoltDB 中的键值对，则由compactor 组件完成。</p>
+<p>MVCC 读过程解析</p>
+<p>我们继续来看读过程中的 MVCC 实现细节。还是使用讲解键值对查询时的流程图：</p>
+<p>读请求实现流程图</p>
+<p>读请求在底层统一调用的是 Range 方法，首先 treeIndex 根据查询的 key 从 BTree 查找对应 keyIndex 对象。从 keyIndex 结构体的定义可知，每一个 keyIndex 结构体中都包含当前键的值以及最后一次修改对应的 Revision 信息，其中还保存了一个 key 的多个 generation，每一个 generation 都会存储当前 key 的所有历史版本。</p>
+<p>treeIndex 模块中提供了 Get 接口获取一个 key 对应 Revision 值：</p>
+<p>// 位于 mvcc/index.go:68</p>
+<p>func (ti *treeIndex) Get(key []byte, atRev int64) (modified, created revision, ver int64, err error) {</p>
+<p>keyi := &amp;keyIndex{key: key}</p>
+<p>if keyi = ti.keyIndex(keyi); keyi == nil {</p>
+<p>return revision{}, revision{}, 0, ErrRevisionNotFound</p>
+<p>}</p>
+<p>return keyi.get(ti.lg, atRev)</p>
+<p>}</p>
+<p>Get 接口的实现通过 keyIndex 函数查找 key 对应的 keyIndex 结构体：</p>
+<p>// 位于 mvcc/index.go:78</p>
+<p>func (ti *treeIndex) keyIndex(keyi *keyIndex) *keyIndex {</p>
+<p>if item := ti.tree.Get(keyi); item != nil {</p>
+<p>return item.(*keyIndex)</p>
+<p>}</p>
+<p>return nil</p>
+<p>}</p>
+<p>可以看到这里的实现非常简单，从 treeIndex 成员 BTree 中查找 keyIndex，将结果转换成 keyIndex 类型后返回；获取 key 对应 Revision 的实现如下：</p>
+<p>// 位于 mvcc/key_index.go:137</p>
+<p>func (ki *keyIndex) get(lg *zap.Logger, atRev int64) (modified, created revision, ver int64, err error) {</p>
+<p>if ki.isEmpty() {</p>
+<p>lg.Panic(</p>
+<p>“‘get’ got an unexpected empty keyIndex”,</p>
+<p>zap.String(“key”, string(ki.key)),</p>
+<p>)</p>
+<p>}</p>
+<p>g := ki.findGeneration(atRev)</p>
+<p>if g.isEmpty() {</p>
+<p>return revision{}, revision{}, 0, ErrRevisionNotFound</p>
+<p>}</p>
+<p>n := g.walk(func(rev revision) bool { return rev.main &gt; atRev })</p>
+<p>if n != -1 {</p>
+<p>return g.revs[n], g.created, g.ver - int64(len(g.revs)-n-1), nil</p>
+<p>}</p>
+<p>return revision{}, revision{}, 0, ErrRevisionNotFound</p>
+<p>}</p>
+<p>上述实现中，通过遍历 generations 数组来获取 generation，匹配到有效的 generation 后，返回 generation 的 revisions 数组中最后一个版本号，即 &lt;3,0&gt; 给读事务。</p>
+<p>获取到 Revision 信息之后，读事务接口优先从 buffer 中查询，如果命中则直接返回，否则根据 revision &lt;3,0&gt; 作为 key 在 BoltDB 中查询。</p>
+<p>在查询时如果没有指定版本号，默认读取最新的数据。如果指定了版本号，比如我们在上面发起了一个指定历史版本号为 3 的读请求：</p>
+<p>$ etcdctl get hello –rev=3</p>
+<p>在 treeIndex 模块获取 key 对应的 keyIndex 时，指定了读版本号为 3 的快照数据。keyIndex 会遍历 generation 内的历史版本号，返回小于等于 3 的最大历史版本号作为 BoltDB 的 key，从中查询对应的 value。</p>
+<p>需要注意的是，并发读写事务不会阻塞在一个 buffer 资源锁上。并发读创建事务时，会全量拷贝当前未提交的 buffer 数据，以此实现并发读。</p>
+<p>Watch机制</p>
+<p>etcd 的 MVCC 模块对外提供了两种访问键值对的实现方式，一种是键值存储 kvstore，另一种是 watchableStore，它们都实现了 KV 接口。</p>
+<p>clientv3 中很简洁地封装了 watch 客户端与服务端交互的细节，客户端使用的代码如下：</p>
+<p>func testWatch() {</p>
+<p>ch := clientv3.Watch(context.TODO(), key)<br>if ch == nil {<br>    t.Errorf(“expected watcher channel, got nil”)<br>}</p>
+<p>for i := 0; i &lt; numKeyUpdates; i++ {<br>      resp, ok := &lt;-ch<br>      if !ok {<br>          t.Errorf(“watcher unexpectedly closed”)<br>      }<br>     v := fmt.Sprintf(“%s-%d”, key, i)<br>     gotv := string(resp.Events[0].Kv.Value)<br>     if gotv != v {<br>        t.Errorf(“#%d: got %s, wanted %s”, i, gotv, v)<br>     }<br>}</p>
+<p>}</p>
+<p>在上述实现中，我们调用了 watchableStore。为了实现 watch 监测，我们创建了一个 watchStream，watchStream 监听的 key 为 hello，之后我们就可以消费w.Chan()返回的 channel。key 为 hello 的任何变化，都会通过这个 channel 发送给客户端。</p>
+<p>实现原理</p>
+<p>server 基于 watchableStore 实现 watch 功能</p>
+<p>在上述实现中，我们调用了 watchableStore。为了实现 watch 监测，我们创建了一个 watchStream，watchStream 监听的 key 为 hello，之后我们就可以消费w.Chan()返回的 channel。key 为 hello 的任何变化，都会通过这个 channel 发送给客户端。</p>
+<p>结合这张图，我们可以看到：watchStream 实现了在大量 KV 的变化事件中，过滤出当前所指定监听的 key，并将键值对的变更事件输出。</p>
+<p>watchableStore 存储</p>
+<p>watchableStore 负责了注册、管理以及触发 Watcher 的功能。我们先来看一下这个结构体的各个字段：</p>
+<p>// 位于 mvcc/watchable_store.go:47</p>
+<p>type watchableStore struct {</p>
+<p>*store</p>
+<p>// 同步读写锁</p>
+<p>mu sync.RWMutex</p>
+<p>// 被阻塞在 watch channel 中的 watcherBatch</p>
+<p>victims []watcherBatch</p>
+<p>victimc chan struct{}</p>
+<p>// 未同步的 watchers</p>
+<p>unsynced watcherGroup</p>
+<p>// 已同步的 watchers</p>
+<p>synced watcherGroup</p>
+<p>stopc chan struct{}</p>
+<p>wg sync.WaitGroup</p>
+<p>}</p>
+<p>watchableStore 组合了 store 结构体的字段和方法，除此之外，还有两个 watcherGroup 类型的字段，watcherGroup 管理多个 watcher，并能够根据 key 快速找到监听该 key 的一个或多个 watcher。</p>
+<p>unsynced 表示 watcher 监听的数据还未同步完成。当创建的 watcher 指定的版本号小于 etcd server 最新的版本号时，会将 watcher 保存到 unsynced watcherGroup。</p>
+<p>synced 表示 watcher 监听的数据都已经同步完毕，在等待新的变更。如果创建的 watcher 未指定版本号或指定的版本号大于当前最新的版本号，它将会保存到 synced watcherGroup 中。</p>
+<p>根据 watchableStore 的定义，我们可以结合下图描述前文示例 watch 监听的过程。</p>
+<p>watch 监听流程</p>
+<p>watchableStore 收到了所有 key 的变更后，将这些 key 交给 synced（watchGroup），synced 使用了 map 和 ADT（红黑树），能够快速地从所有 key 中找到监听的 key，将这些 key 发送给对应的 watcher，这些 watcher 再通过 chan 将变更信息发送出去。</p>
+<p>在查找监听 key 对应的事件时，如果只监听一个 key：</p>
+<p>watch(start_key: foo, end_key: nil)</p>
+<p>则对应的存储为map[key]*watcher。这样可以根据 key 快速找到对应的 watcher。</p>
+<p>watch 可以监听一组范围的 key：</p>
+<p>watch(start_key: hello1, end_key: hello3)</p>
+<p>上面的代码监听了从 hello1→hello3 之间的所有 key，这些 key 的数量不固定，比如：key=hello11 也处于监听范围。这种情况就无法再使用 map 了，因此 etcd 用 ADT 结构来存储一个范围内的 key。</p>
+<p>watcherGroup 是由一系列范围 watcher 组织起来的 watchers。在找到对应的 watcher 后，调用 watcher 的 send() 方法，将变更的事件发送出去。</p>
+<p>syncWatchers 同步监听</p>
+<p>在初始化一个新的 watchableStore 时，etcd 会创建一个用于同步 watcherGroup 的 goroutine，会在 syncWatchersLoop 函数中每隔 100ms 调用一次 syncWatchers 方法，将所有未通知的事件通知给所有的监听者：</p>
+<p>// 位于 mvcc/watchable_store.go:334</p>
+<p>func (s *watchableStore) syncWatchers() int {</p>
+<p>//…</p>
+<p>// 为了从 unsynced watchers 中找到未同步的键值对，我们需要查询最小的版本号，利用最小的版本号查询 backend 存储中的键值对</p>
+<p>curRev := s.store.currentRev</p>
+<p>compactionRev := s.store.compactMainRev</p>
+<p>wg, minRev := s.unsynced.choose(maxWatchersPerSync, curRev, compactionRev)</p>
+<p>minBytes, maxBytes := newRevBytes(), newRevBytes()</p>
+<p>// UnsafeRange 方法返回了键值对。在 boltdb 中存储的 key 都是版本号，而 value 为在 backend 中存储的键值对</p>
+<p>tx := s.store.b.ReadTx()</p>
+<p>tx.RLock()</p>
+<p>revs, vs := tx.UnsafeRange(keyBucketName, minBytes, maxBytes, 0)</p>
+<p>var evs []mvccpb.Event</p>
+<p>// 转换成事件</p>
+<p>evs = kvsToEvents(s.store.lg, wg, revs, vs)</p>
+<p>var victims watcherBatch</p>
+<p>wb := newWatcherBatch(wg, evs)</p>
+<p>for w := range wg.watchers {</p>
+<p>w.minRev = curRev + 1</p>
+<p>//…</p>
+<p>if eb.moreRev != 0 {</p>
+<p>w.minRev = eb.moreRev</p>
+<p>}</p>
+<p>// 通过 send 将事件和 watcherGroup 发送到每一个 watcher 对应的 channel 中</p>
+<p>if w.send(WatchResponse{WatchID: w.id, Events: eb.evs, Revision: curRev}) {</p>
+<p>pendingEventsGauge.Add(float64(len(eb.evs)))</p>
+<p>} else {</p>
+<p>// 异常情况处理</p>
+<p>if victims == nil {</p>
+<p>victims = make(watcherBatch)</p>
+<p>}</p>
+<p>w.victim = true</p>
+<p>}</p>
+<p>//…</p>
+<p>s.unsynced.delete(w)</p>
+<p>}</p>
+<p>//…</p>
+<p>}</p>
+<p>简化后的 syncWatchers 方法中有三个核心步骤，首先是根据当前的版本从未同步的 watcherGroup 中选出一些待处理的任务，然后从 BoltDB 中获取当前版本范围内的数据变更，并将它们转换成事件，事件和 watcherGroup 在打包之后会通过 send 方法发送到每一个 watcher 对应的 channel 中。</p>
+<p>syncWatchers 方法调用流程图</p>
+<p>客户端监听事件</p>
+<p>客户端监听键值对时，调用的正是Watch方法，Watch在 stream 中创建一个新的 watcher，并返回对应的 WatchID。</p>
+<p>// 位于 mvcc/watcher.go:108</p>
+<p>func (ws *watchStream) Watch(id WatchID, key, end []byte, startRev int64, fcs …FilterFunc) (WatchID, error) {</p>
+<p>// 防止出现 key &gt;= end 的错误 range</p>
+<p>if len(end) != 0 &amp;&amp; bytes.Compare(key, end) != -1 {</p>
+<p>return -1, ErrEmptyWatcherRange</p>
+<p>}</p>
+<p>ws.mu.Lock()</p>
+<p>defer ws.mu.Unlock()</p>
+<p>if ws.closed {</p>
+<p>return -1, ErrEmptyWatcherRange</p>
+<p>}</p>
+<p>if id == AutoWatchID {</p>
+<p>for ws.watchers[ws.nextID] != nil {</p>
+<p>ws.nextID++</p>
+<p>}</p>
+<p>id = ws.nextID</p>
+<p>ws.nextID++</p>
+<p>} else if _, ok := ws.watchers[id]; ok {</p>
+<p>return -1, ErrWatcherDuplicateID</p>
+<p>}</p>
+<p>w, c := ws.watchable.watch(key, end, startRev, id, ws.ch, fcs…)</p>
+<p>ws.cancels[id] = c</p>
+<p>ws.watchers[id] = w</p>
+<p>return id, nil</p>
+<p>}</p>
+<p>AutoWatchID 是 WatchStream 中传递的观察者 ID。当用户没有提供可用的 ID 时，如果又传递该值，etcd 将自动分配一个 ID。如果传递的 ID 已经存在，则会返回 ErrWatcherDuplicateID 错误。watchable_store.go 中的 watch 实现是监听的具体实现，实现代码如下：</p>
+<p>// 位于 mvcc/watchable_store.go:120</p>
+<p>func (s *watchableStore) watch(key, end []byte, startRev int64, id WatchID, ch chan&lt;- WatchResponse, fcs …FilterFunc) (*watcher, cancelFunc) {</p>
+<p>// 构建 watcher</p>
+<p>wa := &amp;watcher{</p>
+<p>key: key,</p>
+<p>end: end,</p>
+<p>minRev: startRev,</p>
+<p>id: id,</p>
+<p>ch: ch,</p>
+<p>fcs: fcs,</p>
+<p>}</p>
+<p>s.mu.Lock()</p>
+<p>s.revMu.RLock()</p>
+<p>synced := startRev &gt; s.store.currentRev || startRev == 0</p>
+<p>if synced {</p>
+<p>wa.minRev = s.store.currentRev + 1</p>
+<p>if startRev &gt; wa.minRev {</p>
+<p>wa.minRev = startRev</p>
+<p>}</p>
+<p>}</p>
+<p>if synced {</p>
+<p>s.synced.add(wa)</p>
+<p>} else {</p>
+<p>slowWatcherGauge.Inc()</p>
+<p>s.unsynced.add(wa)</p>
+<p>}</p>
+<p>s.revMu.RUnlock()</p>
+<p>s.mu.Unlock()</p>
+<p>// prometheus 的指标增加</p>
+<p>watcherGauge.Inc()</p>
+<p>return wa, func() { s.cancelWatcher(wa) }</p>
+<p>}</p>
+<p>对 watchableStore 进行操作之前，需要加锁。如果 etcd 收到客户端的 watch 请求中携带了 revision 参数，则比较请求的 revision 和 store 当前的 revision，如果大于当前 revision，则放入 synced 组中，否则放入 unsynced 组。</p>
+<p>服务端处理监听</p>
+<p>当 etcd 服务启动时，会在服务端运行一个用于处理监听事件的 watchServer gRPC 服务，客户端的 watch 请求最终都会被转发到 Watch 函数处理：</p>
+<p>// 位于 etcdserver/api/v3rpc/watch.go:140</p>
+<p>func (ws *watchServer) Watch(stream pb.Watch_WatchServer) (err error) {</p>
+<p>sws := serverWatchStream{</p>
+<p>lg: ws.lg,</p>
+<p>clusterID: ws.clusterID,<br>memberID: ws.memberID,</p>
+<p>maxRequestBytes: ws.maxRequestBytes,</p>
+<p>sg: ws.sg,<br>watchable: ws.watchable,// 共用一个 watchable<br>ag: ws.ag,</p>
+<p>gRPCStream: stream, // 每个单独的grpc stream<br>watchStream: ws.watchable.NewWatchStream(), // 共用一个 watchStream，由watchable 产生(结合上文理解)<br>// chan for sending control response like watcher created and canceled.<br>ctrlStream: make(chan *pb.WatchResponse, ctrlStreamBufLen),</p>
+<p>progress: make(map[mvcc.WatchID]bool),<br>prevKV: make(map[mvcc.WatchID]bool),<br>fragment: make(map[mvcc.WatchID]bool),</p>
+<p>closec: make(chan struct{}),</p>
+<p>}</p>
+<p>sws.wg.Add(1)</p>
+<p>go func() {</p>
+<p>sws.sendLoop()</p>
+<p>sws.wg.Done()</p>
+<p>}()</p>
+<p>errc := make(chan error, 1)</p>
+<p>// 理想情况下，recvLoop 将会使用 sws.wg 通知操作的完成，但是当 stream.Context().Done() 关闭时，由于使用了不同的 ctx，stream 的接口有可能一直阻塞，调用 sws.close() 会发生死锁</p>
+<p>go func() {</p>
+<p>if rerr := sws.recvLoop(); rerr != nil {</p>
+<p>if isClientCtxErr(stream.Context().Err(), rerr) {</p>
+<p>// 错误处理</p>
+<p>}</p>
+<p>errc &lt;- rerr</p>
+<p>}</p>
+<p>}()</p>
+<p>select {</p>
+<p>case err = &lt;-errc:</p>
+<p>close(sws.ctrlStream)</p>
+<p>case &lt;-stream.Context().Done():</p>
+<p>err = stream.Context().Err()</p>
+<p>if err == context.Canceled {</p>
+<p>err = rpctypes.ErrGRPCNoLeader</p>
+<p>}</p>
+<p>}</p>
+<p>sws.close()</p>
+<p>return err</p>
+<p>}</p>
+<p>如果出现了更新或者删除操作，相应的事件就会被发送到 watchStream 的通道中。客户端可以通过 Watch 功能监听某一个 Key 或者一个范围的变动，在每一次客户端调用服务端时都会创建两个 goroutine，其中一个协程 sendLoop 负责向监听者发送数据变动的事件，另一个协程 recvLoop 负责处理客户端发来的事件。</p>
+<p>sendLoop 会通过select 关键字来监听多个 channel 中的数据，将接收到的数据封装成 pb.WatchResponse 结构，并通过 gRPC 流发送给客户端；recvLoop 方法调用了 MVCC 模块暴露出的watchStream.Watch 方法，该方法会返回一个可以用于取消监听事件的 watchID；当 gRPC 流已经结束或者出现错误时，当前的循环就会返回，两个 goroutine 也都会结束。</p>
+<p>异常流程处理</p>
+<p>我们来考虑一下异常流程的处理。消息都是通过 channel 发送出去，但如果消费者消费速度慢，channel 中的消息形成堆积，但是空间有限，满了之后应该怎么办呢？带着这个问题，首先我们来看 channel 的默认容量：</p>
+<p>var (</p>
+<p>// chanBufLen 是发送 watch 事件的 buffered channel 长度</p>
+<p>chanBufLen = 1024</p>
+<p>// maxWatchersPerSync 是每次 sync 时 watchers 的数量</p>
+<p>maxWatchersPerSync = 512</p>
+<p>)</p>
+<p>在实现中设置的 channel 的长度是 1024。channel 一旦满了，etcd 并不会丢弃 watch 事件，而是会进行如下的操作：</p>
+<p>// 位于 mvcc/watchable_store.go:438</p>
+<p>func (s *watchableStore) notify(rev int64, evs []mvccpb.Event) {</p>
+<p>var victim watcherBatch</p>
+<p>for w, eb := range newWatcherBatch(&amp;s.synced, evs) {</p>
+<p>if eb.revs != 1 {</p>
+<p>// 异常</p>
+<p>}</p>
+<p>if w.send(WatchResponse{WatchID: w.id, Events: eb.evs, Revision: rev}) {</p>
+<p>pendingEventsGauge.Add(float64(len(eb.evs)))</p>
+<p>} else {</p>
+<p>// 将 slow watchers 移动到 victims</p>
+<p>w.minRev = rev + 1</p>
+<p>if victim == nil {</p>
+<p>victim = make(watcherBatch)</p>
+<p>}</p>
+<p>w.victim = true</p>
+<p>victim[w] = eb</p>
+<p>s.synced.delete(w)</p>
+<p>slowWatcherGauge.Inc()</p>
+<p>}</p>
+<p>}</p>
+<p>s.addVictim(victim)</p>
+<p>}</p>
+<p>从 notify 的实现中可以知道，此 watcher 将会从 synced watcherGroup 中删除，和事件列表保存到一个名为 victim 的 watcherBatch 结构中。watcher 会记录当前的 Revision，并将自身标记为受损，变更操作也会被保存到 watchableStore 的 victims 中。我使用如下的示例来描述上述过程：</p>
+<p>channel 已满的情况下，有一个写操作写入 foo = bar。监听 foo 的 watcher 将从 synced 中移除，同时 foo=bar 也被保存到 victims 中。</p>
+<p>channel 已满时的处理流程</p>
+<p>接下来该 watcher 不会记录对 foo 的任何变更。那么这些变更消息怎么处理呢？</p>
+<p>我们知道在 channel 队列满时，变更的 Event 就会放入 victims 中。在 etcd 启动的时候，WatchableKV 模块启动了 syncWatchersLoop 和 syncVictimsLoop 两个异步协程，这两个协程用于处理不同场景下发送事件。</p>
+<p>// 位于 mvcc/watchable_store.go:246</p>
+<p>// syncVictimsLoop 清除堆积的 Event</p>
+<p>func (s *watchableStore) syncVictimsLoop() {</p>
+<p>defer s.wg.Done()</p>
+<p>for {</p>
+<p>for s.moveVictims() != 0 {</p>
+<p>//更新所有的 victim watchers</p>
+<p>}</p>
+<p>s.mu.RLock()</p>
+<p>isEmpty := len(s.victims) == 0</p>
+<p>s.mu.RUnlock()</p>
+<p>var tickc &lt;-chan time.Time</p>
+<p>if !isEmpty {</p>
+<p>tickc = time.After(10 * time.Millisecond)</p>
+<p>}</p>
+<p>select {</p>
+<p>case &lt;-tickc:</p>
+<p>case &lt;-s.victimc:</p>
+<p>case &lt;-s.stopc:</p>
+<p>return</p>
+<p>}</p>
+<p>}</p>
+<p>}</p>
+<p>syncVictimsLoop 则负责堆积的事件推送，尝试清除堆积的 Event。它会不断尝试让 watcher 发送这个 Event，一旦队列不满，watcher 将这个 Event 发出后，该 watcher 就被划入了 unsycned 中，同时不再是 victim 状态。</p>
+<p>至此，syncWatchersLoop 协程就开始起作用。由于该 watcher 在 victim 状态已经落后了很多消息。为了保持同步，协程会根据 watcher 保存的 Revision，查出 victim 状态之后所有的消息，将关于 foo 的消息全部给到 watcher，当 watcher 将这些消息都发送出去后，watcher 就由 unsynced 变成 synced。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Technology/" rel="tag"># Technology</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/07/01/etcd/ETCD%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90-%E7%AC%AC%E4%BA%8C%E7%AF%87/" rel="prev" title="Etcd源码解析-第二篇">
+      <i class="fa fa-chevron-left"></i> Etcd源码解析-第二篇
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/09/01/etcd/ETCD-Client%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/" rel="next" title="ETCD Client源码解析">
+      ETCD Client源码解析 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#ETCD-%E5%A4%9A%E7%89%88%E6%9C%AC%E6%8E%A7%E5%88%B6"><span class="nav-number">1.</span> <span class="nav-text">ETCD 多版本控制</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
