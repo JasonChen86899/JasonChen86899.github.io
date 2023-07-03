@@ -144,6 +144,87 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="CN">
+    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2019/02/01/java/ByteBuff%E4%BB%A5%E5%8F%8A%E5%88%86%E9%85%8D%E5%99%A8%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2019/02/01/java/ByteBuff%E4%BB%A5%E5%8F%8A%E5%88%86%E9%85%8D%E5%99%A8%E5%8E%9F%E7%90%86/" class="post-title-link" itemprop="url">Netty源码解析-ByteBuf篇</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2019-02-01 00:00:00" itemprop="dateCreated datePublished" datetime="2019-02-01T00:00:00+08:00">2019-02-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2019-03-10 23:46:34" itemprop="dateModified" datetime="2019-03-10T23:46:34+08:00">2019-03-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Netty/" itemprop="url" rel="index"><span itemprop="name">Netty</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>Netty是如今互联网最流行的java通讯库，在众多优秀组件 dubbo,grpc-java,jetty,RocketMQ中都使用了netty作为其通讯组件。<br>在netty的使用中，最常见的就是ByteBuf类，这个类最常见是由于其是<strong>字节数据的容器</strong>，白话一点就是存放字节数据的数组。<br>因为所有的网络通信最终都是基于底层的字节流传输，所以需要一个方便、易用的数据接口进行字节流的基本操作，正好ByteBuf提供了<br>基础的操作。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2019/02/01/java/ByteBuff%E4%BB%A5%E5%8F%8A%E5%88%86%E9%85%8D%E5%99%A8%E5%8E%9F%E7%90%86/#more" rel="contents">
+                Read more &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="CN">
     <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2019/02/01/java/Netty%E4%B8%ADEpoll%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -225,7 +306,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="CN">
-    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2019/01/06/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%BA%8C)/">
+    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2019/01/06/java/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%BA%8C)/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -239,7 +320,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2019/01/06/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%BA%8C)/" class="post-title-link" itemprop="url">rxjava2 源码解析(二)</a>
+            <a href="/2019/01/06/java/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%BA%8C)/" class="post-title-link" itemprop="url">rxjava2 源码解析(二)</a>
         </h2>
 
         <div class="post-meta">
@@ -282,7 +363,7 @@
           <p>前一篇文章我们讲述到rxjava2 的内部设计模式与原理机制，包括观察者模式和装饰者模式，其本质上都是rxjava2的事件驱动，那么本篇文章将会讲到rxjava2的另外一个功能：异步功能</p>
           <!--noindex-->
             <div class="post-button">
-              <a class="btn" href="/2019/01/06/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%BA%8C)/#more" rel="contents">
+              <a class="btn" href="/2019/01/06/java/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%BA%8C)/#more" rel="contents">
                 Read more &raquo;
               </a>
             </div>
@@ -306,7 +387,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="CN">
-    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2018/12/19/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%B8%80)/">
+    <link itemprop="mainEntityOfPage" href="https://jasonchen86899.github.io/2018/12/19/java/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%B8%80)/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -320,7 +401,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2018/12/19/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%B8%80)/" class="post-title-link" itemprop="url">rxjava2 源码解析(一)</a>
+            <a href="/2018/12/19/java/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%B8%80)/" class="post-title-link" itemprop="url">rxjava2 源码解析(一)</a>
         </h2>
 
         <div class="post-meta">
@@ -363,7 +444,7 @@
           <p>ReactiveX 响应式编程库，这是一个程序库，通过使用<strong>可观察的事件序列</strong>来构成<strong>异步</strong>和<strong>事件驱动</strong>的程序。<br>其简化了异步多线程编程，在以前多线程编程的世界中，锁，可重入锁，同步队列器，信号量，并发同步器，同步计数器，<br>并行框架等都是具有一定的使用门槛，稍有不慎或者使用不成熟或对其源码理解不深入都会造成相应的程序错误和程序性能的低下。</p>
           <!--noindex-->
             <div class="post-button">
-              <a class="btn" href="/2018/12/19/go/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%B8%80)/#more" rel="contents">
+              <a class="btn" href="/2018/12/19/java/rxjava2%20%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90(%E4%B8%80)/#more" rel="contents">
                 Read more &raquo;
               </a>
             </div>
@@ -938,13 +1019,13 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-count">20</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
-        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-count">10</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
